@@ -53,6 +53,9 @@ namespace helix::editor
         static void Defer(bool on);
         // A loaded asset loaded again into its objects (its file or settings changed); false when it is not loaded.
         static bool Reimport(StringView path);
+        // An asset whose objects are those in memory (CreateAsset wrote them): the refresh that finds its file does
+        // not load it again into them.
+        static void CreatedInMemory(StringView path);
 
         static const AssetRecord* ByGuid(const Guid& guid);
         // A project path (case does not matter; trailing slashes neither).

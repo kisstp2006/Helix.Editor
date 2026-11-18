@@ -105,18 +105,21 @@ namespace HelixEditor
     // The main toolbar's own elements: the tools (a strip), play, pause and step, Layers and Layout.
     internal static class DefaultToolbar
     {
-        internal static readonly string[] ToolIds = { "Tools/View", "Tools/Move", "Tools/Rotate", "Tools/Scale", "Tools/Rect" };
+        // The tools' buttons come from the tool registry (Data/Settings/Tools.json); after them where the handle is and
+        // how it turns.
+        internal const string PivotModeId = "Tools/PivotMode", PivotRotationId = "Tools/PivotRotation";
 
-        static MainToolbarElement ToolButton(Tool tool, string icon, string tooltip)
-        {
-            return new MainToolbarToggle(new MainToolbarContent("", icon, tooltip), Tools.current == tool, on => Tools.current = tool) { strip = "tools" };
-        }
+        [MainToolbarElement(PivotModeId, MainToolbarDockPosition.Left, 20)]
+        static MainToolbarElement PivotModeButton() =>
+            Tools.pivotMode == PivotMode.Pivot
+                ? new MainToolbarButton(new MainToolbarContent("Pivot", "ToolPivot", "The handle at the active object's pivot"), () => Tools.pivotMode = PivotMode.Center) { strip = "pivot" }
+                : new MainToolbarButton(new MainToolbarContent("Center", "ToolCenter", "The handle at the selection's center"), () => Tools.pivotMode = PivotMode.Pivot) { strip = "pivot" };
 
-        [MainToolbarElement("Tools/View", MainToolbarDockPosition.Left, 0)] static MainToolbarElement View() => ToolButton(Tool.View, "ToolView", "View Tool (Q)");
-        [MainToolbarElement("Tools/Move", MainToolbarDockPosition.Left, 1)] static MainToolbarElement Move() => ToolButton(Tool.Move, "ToolMove", "Move Tool (W)");
-        [MainToolbarElement("Tools/Rotate", MainToolbarDockPosition.Left, 2)] static MainToolbarElement Rotate() => ToolButton(Tool.Rotate, "ToolRotate", "Rotate Tool (E)");
-        [MainToolbarElement("Tools/Scale", MainToolbarDockPosition.Left, 3)] static MainToolbarElement Scale() => ToolButton(Tool.Scale, "ToolScale", "Scale Tool (R)");
-        [MainToolbarElement("Tools/Rect", MainToolbarDockPosition.Left, 4)] static MainToolbarElement Rect() => ToolButton(Tool.Rect, "ToolRect", "Rect Tool (T)");
+        [MainToolbarElement(PivotRotationId, MainToolbarDockPosition.Left, 21)]
+        static MainToolbarElement PivotRotationButton() =>
+            Tools.pivotRotation == PivotRotation.Local
+                ? new MainToolbarButton(new MainToolbarContent("Local", "ToolLocal", "The handle turned with the active object"), () => Tools.pivotRotation = PivotRotation.Global) { strip = "pivot" }
+                : new MainToolbarButton(new MainToolbarContent("Global", "ToolGlobal", "The handle along the world's axes"), () => Tools.pivotRotation = PivotRotation.Local) { strip = "pivot" };
 
         [MainToolbarElement("Editor/Play", MainToolbarDockPosition.Middle, 0)]
         static MainToolbarElement Play() =>

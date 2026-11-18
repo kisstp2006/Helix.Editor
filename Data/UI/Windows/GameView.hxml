@@ -1,13 +1,20 @@
 <HXML>
-  <!-- The Game view: its toolbar (display, aspect, scale, play focus, stats, Gizmos) over the viewport. -->
+  <!-- The Game view: its toolbar (display, size, scale, the play mode's focus, stats, Gizmos) over the viewport, where
+       the game's display texture is shown at its scale, the stats panel over it. -->
   <Element class="window-toolbar">
-    <Button class="window-dropdown"><Label text="Display 1"/><Element class="icon arrow-down"/></Button>
-    <Button class="window-dropdown wide"><Label text="Free Aspect"/><Element class="icon arrow-down"/></Button>
-    <Button class="window-dropdown"><Label text="Scale 1x"/><Element class="icon arrow-down"/></Button>
+    <Button name="game-display" class="window-dropdown"><Label text="Display 1"/><Element class="icon arrow-down"/></Button>
+    <Button name="game-size" class="window-dropdown wide"><Label text="Free Aspect"/><Element class="icon arrow-down"/></Button>
+    <Label class="game-scale-label" text="Scale"/>
+    <Slider name="game-scale" class="game-scale"/>
+    <Label name="game-scale-value" class="game-scale-value" text="1x"/>
     <Element class="window-fill"/>
-    <Button class="window-dropdown wide"><Label text="Play Focused"/><Element class="icon arrow-down"/></Button>
-    <Button class="window-tool"><Label text="Stats"/></Button>
-    <Button class="window-dropdown"><Label text="Gizmos"/><Element class="icon arrow-down"/></Button>
+    <Button name="game-play-mode" class="window-dropdown wide"><Label text="Play Focused"/><Element class="icon arrow-down"/></Button>
+    <Button name="game-stats" class="window-tool"><Label text="Stats"/></Button>
+    <Button name="game-gizmos" class="window-dropdown"><Label text="Gizmos"/><Element class="icon arrow-down"/></Button>
   </Element>
-  <Element class="window-content viewport"><Label class="window-note" text="The game view comes with step 5."/></Element>
+  <Element name="game-viewport" class="window-content viewport game-viewport">
+    <Element name="game-image" class="game-image"/>
+    <Label name="game-message" class="game-message"/>
+    <Element name="game-stats-panel" class="game-stats-panel"><Label name="game-stats-text" class="game-stats-text"/></Element>
+  </Element>
 </HXML>

@@ -48,6 +48,8 @@
 .tool-button.on { background-image: url("../Skin/HelixClassic/ButtonOn.png"); }
 .tool-button .icon { width: var(--hx-tool-icon-size); height: var(--hx-tool-icon-size); }
 .tool-button.on .icon { -helix-background-image-tint-color: var(--hx-accent-text); }
+.tool-button.with-text { width: auto; flex-direction: row; padding-left: 4px; padding-right: 6px; }
+.tool-button.with-text Label { margin-left: 2px; color: var(--hx-text); }
 .toolbar-dropdown { flex-direction: row; align-items: center; height: var(--hx-toolbar-dropdown-height); min-width: var(--hx-toolbar-dropdown-width); margin-left: var(--hx-toolbar-gap); padding-left: 8px; padding-right: 6px; border-width: 0px; }
 .toolbar-dropdown:hover { background-image: url("../Skin/HelixClassic/ButtonHover.png"); }
 .toolbar-dropdown Label { flex-grow: 1; color: var(--hx-text); }
@@ -125,6 +127,9 @@
 .window-dropdown.plain:hover { background-image: url("../Skin/HelixClassic/ToolbarButtonHover.png"); }
 .window-dropdown.wide { min-width: var(--hx-window-dropdown-wide-width); }
 .window-dropdown Label { flex-grow: 1; color: var(--hx-text); font-size: var(--hx-small-font-size); margin-right: 4px; }
+/* The Create menus' plus (the reference's toolbars show it in place of the word). */
+.window-dropdown .icon.icon-plus { width: 13px; height: 13px; margin-right: 1px; -helix-background-image-tint-color: var(--hx-text); }
+.window-search.wide { flex-grow: 1; min-width: 40px; }
 .window-dropdown .icon.arrow-down { width: 8px; height: 8px; -helix-background-image-tint-color: var(--hx-text-dim); }
 .window-tool { flex-direction: row; align-items: center; justify-content: center; height: var(--hx-window-control-height); min-width: 22px; margin: 0px; margin-right: 1px; padding-left: 4px; padding-right: 4px; border-width: 0px; background-color: rgba(0, 0, 0, 0); background-image: none; }
 .window-tool:hover { background-image: url("../Skin/HelixClassic/ToolbarButtonHover.png"); -helix-slice-left: 4; -helix-slice-top: 4; -helix-slice-right: 4; -helix-slice-bottom: 4; }
@@ -214,3 +219,44 @@
 .add-component-icon { width: 14px; height: 14px; margin-right: 6px; -helix-background-scale-mode: scale-to-fit; -helix-background-image-tint-color: var(--hx-text); }
 .add-component-name { color: var(--hx-text); }
 .add-component-row--highlight .add-component-name { color: var(--hx-accent-text); }
+
+/* The Scene view: its camera's picture fills the viewport. */
+.scene-viewport { padding: 0px; -helix-background-scale-mode: stretch-to-fill; }
+.scene-viewport { position: relative; }
+.scene-orientation-label { position: absolute; left: 0px; right: 0px; bottom: 0px; -helix-text-align: middle-center; color: var(--hx-text-strong); font-size: var(--hx-small-font-size); }
+
+/* Overlays: in a window's top row a toolbar overlay is part of the classic row (its grip the separator after it);
+   at the view's sides and floating a toolbar is a dark strip with a dotted grip; a panel is a box with a header. */
+.overlay-top { padding-right: 3px; }
+.overlay-zone { padding: 0px; }
+.overlay-left-toolbar, .overlay-right-toolbar, .overlay-left-column, .overlay-right-column { padding: 4px; }
+.overlay-bottom { padding: 4px; }
+.overlay-toolbar-content { padding: 0px; }
+.overlay-in-row { background-color: rgba(0, 0, 0, 0); }
+.overlay-grip { flex-shrink: 0; }
+.overlay-in-row .overlay-grip-vertical { width: 1px; height: 14px; margin-left: 3px; margin-right: 4px; background-color: #00000060; border-right-width: 1px; border-right-color: #ffffff0c; }
+.overlay-in-row .overlay-grip-vertical.last { background-color: rgba(0, 0, 0, 0); border-right-color: rgba(0, 0, 0, 0); }
+.overlay-top-end .overlay-in-row .overlay-grip-vertical { background-color: rgba(0, 0, 0, 0); border-right-color: rgba(0, 0, 0, 0); margin-left: 0px; margin-right: 2px; }
+.overlay-toolbar, .overlay-toolbar-vertical { margin-bottom: 4px; padding: 2px; background-color: #303030e8; border-width: 1px; border-color: #1a1a1a; border-radius: 3px; }
+.overlay-in-row.overlay-toolbar { margin: 0px; padding: 0px; background-color: rgba(0, 0, 0, 0); border-width: 0px; }
+.overlay-toolbar .overlay-grip-vertical { width: 6px; height: 16px; margin-right: 2px; background-image: url("../Skin/Icons/GripVertical.png"); -helix-background-image-tint-color: var(--hx-text-dim); }
+.overlay-toolbar-vertical .overlay-grip-horizontal { width: 16px; height: 6px; margin-bottom: 2px; background-image: url("../Skin/Icons/GripHorizontal.png"); -helix-background-image-tint-color: var(--hx-text-dim); }
+.overlay-toolbar-vertical .window-tool { margin: 0px; margin-bottom: 1px; width: 24px; height: 22px; }
+.overlay-toolbar-vertical .window-tool .icon { width: 16px; height: 16px; }
+.overlay-panel { margin-bottom: 4px; min-width: 120px; background-color: #303030ee; border-width: 1px; border-color: #1a1a1a; border-radius: 3px; }
+.overlay-header { flex-direction: row; align-items: center; height: 18px; padding-left: 6px; padding-right: 2px; background-color: #3c3c3c; border-bottom-width: 1px; border-bottom-color: #1a1a1a; }
+.overlay-header Label { flex-grow: 1; color: var(--hx-text); font-size: var(--hx-small-font-size); }
+.overlay-collapse { width: 16px; height: 16px; padding: 0px; margin: 0px; border-width: 0px; background-color: rgba(0, 0, 0, 0); background-image: none; align-items: center; justify-content: center; }
+.overlay-collapse .icon { width: 8px; height: 8px; -helix-background-image-tint-color: var(--hx-text-dim); }
+.overlay-bare { background-color: rgba(0, 0, 0, 0); }
+
+/* The Game view: the display texture at its place and scale (cut by the viewport), the message without cameras, the
+   stats panel at the top right. */
+.window-content.viewport.game-viewport { padding: 0px; background-color: #1b1b1b; overflow: hidden; position: relative; align-items: flex-start; justify-content: flex-start; }
+.game-image { position: absolute; -helix-background-scale-mode: stretch-to-fill; }
+.game-message { position: absolute; left: 0px; right: 0px; top: 0px; bottom: 0px; -helix-text-align: middle-center; color: var(--hx-text); font-size: 16px; white-space: normal; }
+.game-stats-panel { position: absolute; top: 6px; right: 6px; padding: 6px; padding-right: 10px; background-color: #202020dd; border-width: 1px; border-color: #101010; border-radius: 3px; }
+.game-stats-text { color: var(--hx-text-strong); font-size: var(--hx-small-font-size); white-space: normal; }
+.game-scale-label { color: var(--hx-text); font-size: var(--hx-small-font-size); margin-left: 6px; margin-right: 4px; }
+.game-scale { width: 110px; margin: 0px; }
+.game-scale-value { color: var(--hx-text); font-size: var(--hx-small-font-size); width: 34px; margin-left: 4px; }

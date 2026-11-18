@@ -200,6 +200,13 @@ namespace HelixEditor
             return w;
         }
 
+        /// <summary>The window's overlay of an id (its canvas' overlays).</summary>
+        public bool TryGetOverlay(string id, out Overlays.Overlay match)
+        {
+            match = Overlays.OverlayCanvas.Of(this)?.Find(id);
+            return match != null;
+        }
+
         public static bool HasOpenInstances<T>() where T : EditorWindow
         {
             foreach (EditorWindow w in s_Windows)

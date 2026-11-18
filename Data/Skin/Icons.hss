@@ -10,9 +10,17 @@
 .icon-tool-move { background-image: url("Icons/ToolMove.png"); }
 .icon-tool-rotate { background-image: url("Icons/ToolRotate.png"); }
 .icon-tool-scale { background-image: url("Icons/ToolScale.png"); }
+.icon-tool-transform { background-image: url("Icons/ToolTransform.png"); }
 .icon-tool-rect { background-image: url("Icons/ToolRect.png"); }
+.icon-tool-pivot { background-image: url("Icons/ToolPivot.png"); }
+.icon-tool-center { background-image: url("Icons/ToolCenter.png"); }
+.icon-tool-local { background-image: url("Icons/ToolLocal.png"); }
+.icon-tool-global { background-image: url("Icons/ToolGlobal.png"); }
+.icon-grip-vertical { background-image: url("Icons/GripVertical.png"); }
+.icon-grip-horizontal { background-image: url("Icons/GripHorizontal.png"); }
 .icon-arrow-down { background-image: url("Icons/ArrowDown.png"); }
 .icon-arrow-right { background-image: url("Icons/ArrowRight.png"); }
+.icon-plus { background-image: url("Icons/Plus.png"); }
 .icon-lock { background-image: url("Icons/Lock.png"); }
 .icon-search { background-image: url("Icons/Search.png"); }
 .icon-menu { background-image: url("Icons/Menu.png"); }

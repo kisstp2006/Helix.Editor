@@ -316,6 +316,11 @@ namespace HelixEditor
                 BeginRename(Selection.activeGameObject);
                 e.StopPropagation();
             }
+            else if (e.keyCode == KeyCode.F && !e.ctrlKey && !e.altKey && Selection.gameObjects.Length > 0)
+            {
+                SceneView.lastActiveSceneView?.FrameSelected();
+                e.StopPropagation();
+            }
             else if (e.keyCode == KeyCode.Delete && Selection.gameObjects.Length > 0)
             {
                 HierarchyCommands.DeleteSelection();
@@ -447,6 +452,12 @@ namespace HelixEditor
 
         void OnPointerDown(PointerDownEvent e)
         {
+            // A double click on an object frames it in the scene view (once the tree selected it).
+            if (e.button == 0 && e.clickCount == 2)
+            {
+                EditorApplication.delayCall += () => SceneView.lastActiveSceneView?.FrameSelected();
+                return;
+            }
             if (e.button != 1)
                 return;
             // The row under the pointer is selected first (unless it is among the selection).

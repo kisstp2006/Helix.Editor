@@ -1,16 +1,6 @@
 <HXML>
-  <!-- The Scene view: its toolbar (draw mode, RGB, lighting, 2D, effects, grid, Gizmos) over the viewport. -->
-  <Element class="window-toolbar">
-    <Button class="window-dropdown wide"><Label text="Textured"/><Element class="icon arrow-down"/></Button>
-    <Button class="window-dropdown"><Label text="RGB"/><Element class="icon arrow-down"/></Button>
-    <Element class="window-separator"/>
-    <Button class="window-tool on"><Element class="icon icon-light"/></Button>
-    <Button class="window-tool"><Label text="2D"/></Button>
-    <Button class="window-tool"><Element class="icon icon-effects"/></Button>
-    <Element class="window-separator"/>
-    <Button class="window-tool on"><Element class="icon icon-grid"/></Button>
-    <Element class="window-fill"/>
-    <Button class="window-dropdown"><Label text="Gizmos"/><Element class="icon arrow-down"/></Button>
-  </Element>
-  <Element class="window-content viewport"><Label class="window-note" text="The scene view comes with step 5."/></Element>
+  <!-- The Scene view: its top row (the overlays docked in the top toolbar zone: View Options, Grid and Snap, Gizmos)
+       over the viewport, whose overlay canvas holds the others. -->
+  <Element name="overlay-top" class="window-toolbar overlay-top"/>
+  <Element name="scene-viewport" class="window-content viewport scene-viewport"/>
 </HXML>

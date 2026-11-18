@@ -186,6 +186,54 @@ namespace HelixEditor.Tests
         public int value;
     }
 
+    // A script that draws gizmos: a wire sphere always, a solid cube when selected.
+    public sealed class GizmoProbe : GameBehaviour
+    {
+        internal static int s_Drawn, s_DrawnSelected;
+        public float radius = 1;
+
+        void OnDrawGizmos()
+        {
+            s_Drawn++;
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(transform.position, radius);
+            Gizmos.DrawIcon(transform.position + Vector3.up * 1.5f, "ComponentScript");
+        }
+
+        void OnDrawGizmosSelected()
+        {
+            s_DrawnSelected++;
+            Gizmos.color = new Color(0, 1, 1, 0.5f);
+            Gizmos.DrawCube(transform.position, Vector3.one * 0.5f);
+        }
+    }
+
+    public sealed class SceneGuiProbe : GameBehaviour
+    {
+        public float radius = 1;
+    }
+
+    [CustomEditor(typeof(SceneGuiProbe))]
+    public sealed class SceneGuiProbeEditor : Editor
+    {
+        internal static int s_Calls;
+
+        void OnSceneGui()
+        {
+            s_Calls++;
+            var p = (SceneGuiProbe)target;
+            p.radius = Handles.RadiusHandle(Quaternion.identity, p.transform.position, p.radius);
+        }
+    }
+
+    [HelixEditor.EditorTools.EditorTool("Probe Tool", typeof(SceneGuiProbe))]
+    public sealed class ProbeTool : HelixEditor.EditorTools.EditorTool
+    {
+        internal static int s_Calls;
+
+        public override void OnToolGUI(EditorWindow window) => s_Calls++;
+    }
+
     // A script of every kind of field the serialized properties read and write.
     public sealed class Inspected : GameBehaviour
     {
@@ -418,6 +466,32 @@ namespace HelixEditor.Tests
             s_Steps.Enqueue(("the Inspector of an asset", InspectorAsset));
             s_Steps.Enqueue(("a frame", () => { }));
             s_Steps.Enqueue(("the asset shown", InspectorAssetShown));
+            s_Steps.Enqueue(("the scene view", SceneViewOpen));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the scene view's camera", SceneViewCamera));
+            s_Steps.Enqueue(("the scene view's navigation", SceneViewNavigation));
+            s_Steps.Enqueue(("the scene view's grid", SceneViewGrid));
+            s_Steps.Enqueue(("snapping", Snapping));
+            s_Steps.Enqueue(("gizmos", GizmosDrawn));
+            s_Steps.Enqueue(("handle utility", HandleUtilityMeasures));
+            s_Steps.Enqueue(("the tool registry", ToolRegistryShown));
+            s_Steps.Enqueue(("the tools' handles", ToolHandles));
+            s_Steps.Enqueue(("component tools and the editors' scene GUI", ComponentToolsAndSceneGui));
+            s_Steps.Enqueue(("picking and selecting in the scene view", Picking));
+            s_Steps.Enqueue(("the scene view's overlays", Overlays));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the overlays' elements, moves and state", OverlaysUsed));
+            s_Steps.Enqueue(("the Game view open", GameViewOpen));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the Game view drawn", GameViewDrawn));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the Game view's Display 2", GameViewSecondDisplay));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the Game view without cameras, its sizes, scale and play mode", GameViewNoCamera));
             s_Steps.Enqueue(("guids", Guids));
             s_Steps.Enqueue(("objects and their assets", ObjectsAndAssets));
             s_Steps.Enqueue(("native assets", NativeAssets));
@@ -814,6 +888,21 @@ namespace HelixEditor.Tests
             Equal(SerializedPropertyType.Enum, mode.propertyType, "an enum");
             Equal(1, mode.enumValueIndex, "its index");
             Equal(new[] { "First", "Second", "Third" }, mode.enumDisplayNames, "its names");
+            {
+                // A native class's enum fields: their C# member's type (Light's m_Type is Light.type).
+                var lit = new GameObject("Lit").AddComponent<Light>();
+                lit.type = LightType.Directional;
+                lit.shadows = LightShadows.Soft;
+                var lso = new SerializedObject(lit);
+                SerializedProperty type = lso.FindProperty("m_Type");
+                Equal(SerializedPropertyType.Enum, type.propertyType, "a native enum");
+                Equal(Enum.GetNames(typeof(LightType)).Length, type.enumNames.Length, "its names from LightType");
+                Equal("Directional", type.enumNames[type.enumValueIndex], "its value");
+                SerializedProperty shadows = lso.FindProperty("m_Shadows.m_Type");
+                Equal(SerializedPropertyType.Enum, shadows.propertyType, "a nested one through the members table");
+                Equal("Soft", shadows.enumNames[shadows.enumValueIndex], "its value");
+                HelixEngine.Object.DestroyImmediate(lit.gameObject);
+            }
             Equal(new Color(1, 0, 0, 1), so.FindProperty("tint").colorValue, "a color");
             Equal(SerializedPropertyType.Color, so.FindProperty("tint").propertyType, "a Color");
             Equal("How far", so.FindProperty("range").tooltip, "a tooltip");
@@ -1262,6 +1351,716 @@ namespace HelixEditor.Tests
             HelixEngine.Object.DestroyImmediate(s_InspectorOther);
         }
 
+        static void SceneViewOpen()
+        {
+            SceneView v = EditorWindow.GetWindow<SceneView>();
+            v.Focus();
+            Check(SceneView.sceneViews.Contains(v), "among the scene views");
+            Check(SceneView.lastActiveSceneView != null, "a last active one");
+        }
+
+        static void SceneViewCamera()
+        {
+            SceneView v = EditorWindow.GetWindow<SceneView>();
+            Camera cam = v.camera;
+            Check(cam != null && cam.cameraType == CameraType.SceneView, "its hidden camera, a scene view camera");
+            Check(cam.gameObject.scene != SceneManager.GetActiveScene(), "not in the edited scene");
+            RenderTexture rt = v.targetTextureInternal;
+            Check(rt != null && cam.targetTexture == rt, "drawing into the viewport's texture");
+            Equal((int)Math.Round(v.viewportInternal.layout.width), rt.width, "as wide as the viewport");
+            Equal((int)Math.Round(v.viewportInternal.layout.height), rt.height, "as tall");
+            Check(v.viewportInternal.resolvedStyle.backgroundImage.renderTexture == rt, "the viewport showing it");
+
+            v.LookAt(new Vector3(1, 2, 3), Quaternion.Euler(20, 40, 0), 5, false, true);
+            Equal(new Vector3(1, 2, 3), v.pivot, "the pivot");
+            Equal(5f, v.size, "the size");
+            Check(Math.Abs(v.cameraDistance - 5 / (float)Math.Tan(30 * Math.PI / 180)) < 1e-3f, $"the distance from the field of view ({v.cameraDistance})");
+            v.UpdateInternal();
+            Vector3 expected = v.pivot - v.rotation * Vector3.forward * v.cameraDistance;
+            Check((cam.transform.position - expected).magnitude < 1e-3f, $"the camera at the view's place ({cam.transform.position} / {expected})");
+            v.in2DMode = true;
+            Check(v.orthographic && v.rotation == Quaternion.identity, "2D: orthographic, looking along z");
+            v.UpdateInternal();
+            Check(cam.orthographic && Math.Abs(cam.orthographicSize - v.size) < 1e-4f, "the camera orthographic of the view's size");
+            v.in2DMode = false;
+            Check(!v.orthographic, "3D again");
+            Check(v.Frame(new Bounds(new Vector3(10, 0, 0), new Vector3(2, 2, 2))), "framed bounds");
+            Equal(new Vector3(10, 0, 0), v.pivot, "about their center");
+            Check(Math.Abs(v.size - new Vector3(1, 1, 1).magnitude) < 1e-3f, "their extent's size");
+        }
+
+        static void Near(Vector3 expected, Vector3 actual, string what) =>
+            Check((expected - actual).magnitude < 1e-3f, $"{what} (expected {expected}, got {actual})");
+
+        static void SceneViewNavigation()
+        {
+            SceneView v = EditorWindow.GetWindow<SceneView>();
+            v.LookAt(Vector3.zero, Quaternion.identity, 10, false, true);
+            v.OrbitByInternal(new Vector2(300, 0));
+            Near(Vector3.zero, v.pivot, "orbiting keeps the pivot");
+            Near(Quaternion.AngleAxis(90, Vector3.up) * Vector3.forward, v.rotation * Vector3.forward, "300 px turn it 90 degrees about up");
+            v.LookAt(Vector3.zero, Quaternion.identity, 10, false, true);
+            float h = v.viewportInternal.layout.height;
+            v.PanByInternal(new Vector2(h / 2, 0));
+            Near(new Vector3(-10, 0, 0), v.pivot, "half the view's height to the right: the size to the left");
+            v.PanByInternal(new Vector2(0, h / 2));
+            Near(new Vector3(-10, 10, 0), v.pivot, "half down: the size up");
+            v.ZoomByInternal(0.5f);
+            Equal(5f, v.size, "zoomed in");
+            v.LookAt(Vector3.zero, Quaternion.identity, 10, false, true);
+            v.cameraSettings.speed = 1;
+            v.FlyInternal(1, KeyCode.W);
+            Near(new Vector3(0, 0, 5), v.pivot, "W flies forward (5 units a second at speed 1)");
+            v.FlyInternal(1, KeyCode.D, KeyCode.E);
+            Check(v.pivot.x > 0 && v.pivot.y > 0, $"D right, E up ({v.pivot})");
+
+            v.LookAt(new Vector3(3, 0, 0), Quaternion.identity, 10, false, false);
+            Check(v.easingInternal, "LookAt eases");
+            v.FinishEaseInternal();
+            Check(!v.easingInternal, "and ends");
+            Near(new Vector3(3, 0, 0), v.pivot, "where it was asked");
+            v.LookAlongInternal(Vector3.right);
+            v.FinishEaseInternal();
+            Near(Vector3.left, v.rotation * Vector3.forward, "the X axis: looking from the right toward -X");
+            v.LookAlongInternal(Vector3.up);
+            v.FinishEaseInternal();
+            Near(Vector3.down, v.rotation * Vector3.forward, "the Y axis: looking down");
+            v.ToggleOrthographicInternal();
+            v.FinishEaseInternal();
+            Check(v.orthographic, "the middle: orthographic");
+            v.ToggleOrthographicInternal();
+            v.FinishEaseInternal();
+            Check(!v.orthographic, "and perspective again");
+
+            var go = new GameObject("Framed");
+            go.transform.position = new Vector3(20, 1, -4);
+            Selection.activeObject = go;
+            Check(v.FrameSelected(false, true), "the selection framed");
+            Near(new Vector3(20, 1, -4), v.pivot, "about the object");
+            Selection.objects = Array.Empty<HelixEngine.Object>();
+            HelixEngine.Object.DestroyImmediate(go);
+        }
+
+        static void SceneViewGrid()
+        {
+            SceneView v = EditorWindow.GetWindow<SceneView>();
+            Check(v.showGrid, "the grid shown by default");
+            v.LookAt(Vector3.zero, Quaternion.Euler(30, 0, 0), 5, false, true);
+            v.UpdateInternal();
+            Check(v.gridDrawnInternal, "drawn for the view's camera");
+            Equal(Vector3.up, v.gridNormalInternal, "on the XZ plane");
+            Equal(1f, v.gridCellInternal, "of the grid's cells near");
+            v.LookAt(Vector3.zero, Quaternion.Euler(30, 0, 0), 5000, false, true);
+            v.UpdateInternal();
+            Equal(100f, v.gridCellInternal, "cells a decade larger per decade farther");
+            v.LookAt(Vector3.zero, Quaternion.identity, 5, true, true);
+            v.UpdateInternal();
+            Equal(Vector3.forward, v.gridNormalInternal, "orthographic along Z: the XY plane");
+            v.LookAt(Vector3.zero, Quaternion.LookRotation(Vector3.left), 5, true, true);
+            v.UpdateInternal();
+            Equal(Vector3.right, v.gridNormalInternal, "along X: the YZ plane");
+            v.showGrid = false;
+            v.UpdateInternal();
+            Check(!v.gridDrawnInternal, "hidden");
+            v.showGrid = true;
+            v.LookAt(Vector3.zero, Quaternion.Euler(30, -35, 0), 10, false, true);
+        }
+
+        static void Snapping()
+        {
+            int changes = 0;
+            Action<Vector3> count = s => changes++;
+            GridSettings.sizeChanged += count;
+            GridSettings.size = new Vector3(0.5f, 0.5f, 0.5f);
+            Equal(1, changes, "the grid's size change told");
+            Equal(new Vector3(1, 1.5f, -0.5f), Handles.SnapToGrid(new Vector3(1.1f, 1.4f, -0.6f)), "to the grid's cells");
+            GridSettings.ResetGridSettings();
+            GridSettings.sizeChanged -= count;
+            Equal(Vector3.one, GridSettings.size, "reset");
+            Equal(45f, Handles.SnapValue(50, 15), "to the nearest step");
+            Equal(7.3f, Handles.SnapValue(7.3f, 0), "none without a step");
+            EditorSnapSettings.rotate = 30;
+            Equal(30f, EditorSnapSettings.rotate, "the rotation increment kept");
+            EditorSnapSettings.snapEnabled = true;
+            Check(EditorSnapSettings.incrementalSnapActive, "always snapping when enabled");
+            EditorSnapSettings.ResetSnapSettings();
+            Equal(15f, EditorSnapSettings.rotate, "reset");
+            Check(!EditorSnapSettings.snapEnabled && !EditorSnapSettings.gridSnapEnabled, "both off again");
+        }
+
+        static void GizmosDrawn()
+        {
+            SceneView v = EditorWindow.GetWindow<SceneView>();
+            var probe = new GameObject("Gizmo Probe");
+            probe.AddComponent<GizmoProbe>();
+            int drawn = GizmoProbe.s_Drawn, selected = GizmoProbe.s_DrawnSelected;
+            v.UpdateInternal();
+            Check(GizmoProbe.s_Drawn > drawn, "OnDrawGizmos called");
+            Equal(selected, GizmoProbe.s_DrawnSelected, "OnDrawGizmosSelected not while unselected");
+            Check(v.gizmoBatchInternal.lineCount >= 96, $"its wire sphere's lines ({v.gizmoBatchInternal.lineCount})");
+            Check(v.iconsInternal.Count >= 3, $"icons: the camera's, the light's, the script's ({v.iconsInternal.Count})");
+            Selection.activeObject = probe;
+            v.UpdateInternal();
+            Check(GizmoProbe.s_DrawnSelected > selected, "OnDrawGizmosSelected once selected");
+            Check(v.gizmoBatchInternal.triangleCount >= 12, "its solid cube");
+            Selection.activeObject = GameObject.Find("Main Camera");
+            int lines = 0;
+            v.UpdateInternal();
+            lines = v.gizmoBatchInternal.lineCount;
+            Check(lines >= 12, $"the selected camera's frustum ({lines})");
+            v.drawGizmos = false;
+            v.UpdateInternal();
+            Equal(0, v.gizmoBatchInternal.lineCount, "none with gizmos off");
+            v.drawGizmos = true;
+            Selection.objects = Array.Empty<HelixEngine.Object>();
+            HelixEngine.Object.DestroyImmediate(probe);
+            Check(!HelixEngine.Internal.GizmoRecorder.recording, "Gizmos record only while the view gathers them");
+        }
+
+        static void HandleUtilityMeasures()
+        {
+            SceneView v = EditorWindow.GetWindow<SceneView>();
+            v.LookAt(Vector3.zero, Quaternion.identity, 5, false, true);
+            v.UpdateInternal();
+            float w = v.viewportInternal.layout.width, h = v.viewportInternal.layout.height;
+            HandleUtility.SetCameraInternal(v.camera, h);
+            Vector2 c = HandleUtility.WorldToGUIPoint(Vector3.zero);
+            Check(Math.Abs(c.x - w / 2) < 1 && Math.Abs(c.y - h / 2) < 1, $"the pivot in the middle ({c}, {w}x{h})");
+            Vector2 up = HandleUtility.WorldToGUIPoint(Vector3.up);
+            Check(up.y < c.y, "up is up on the screen");
+            Ray ray = HandleUtility.GUIPointToWorldRay(new Vector2(w / 2, h / 2));
+            Check((ray.direction - Vector3.forward).magnitude < 1e-2f, $"the middle's ray along the view ({ray.direction})");
+            float size = HandleUtility.GetHandleSize(Vector3.zero);
+            float pixels = (HandleUtility.WorldToGUIPoint(Vector3.right * size) - c).magnitude;
+            Check(Math.Abs(pixels - 80) < 1, $"a handle's size is 80 pixels ({pixels})");
+            Vector2 a = HandleUtility.WorldToGUIPoint(Vector3.zero), b = HandleUtility.WorldToGUIPoint(Vector3.right * 2);
+            Check(Math.Abs(HandleUtility.CalcLineTranslation(a, b, Vector3.zero, Vector3.right) - 2) < 1e-2f, "a drag along an axis: its length there");
+            Equal(new Vector2(1, 0), HandleUtility.ProjectPointLine(new Vector2(1, 5), Vector2.zero, new Vector2(4, 0)), "a point onto a line");
+            Equal(5f, HandleUtility.DistancePointLine(new Vector2(1, 5), Vector2.zero, new Vector2(4, 0)), "its distance");
+        }
+
+        static void ToolRegistryShown()
+        {
+            var builtin = HelixEditor.EditorTools.ToolRegistry.builtinInternal;
+            Equal(6, builtin.Count, "six built-in tools from Settings/Tools.json");
+            string keys = "";
+            foreach (var e in builtin)
+                keys += e.key.ToString();
+            Equal("QWERTY", keys, "their keys in order");
+            Check(EditorToolbar.Exists("Tools/Transform"), "their buttons in the main toolbar");
+            Check(EditorToolbar.Exists(DefaultToolbar.PivotModeId) && EditorToolbar.Exists(DefaultToolbar.PivotRotationId),
+                  "the pivot toggles after them");
+            int changing = 0, changed = 0;
+            Action a = () => changing++, b = () => changed++;
+            HelixEditor.EditorTools.ToolManager.activeToolChanging += a;
+            HelixEditor.EditorTools.ToolManager.activeToolChanged += b;
+            Tools.current = Tool.Move;
+            Tools.current = Tool.Rotate;
+            Equal(Tool.Rotate, Tools.current, "Tools.current set");
+            Equal("RotateTool", HelixEditor.EditorTools.ToolManager.activeToolType?.Name, "the active tool's class");
+            Check(changing >= 1 && changed >= 1, "the change told");
+            HelixEditor.EditorTools.ToolManager.RestorePreviousTool();
+            Equal(Tool.Move, Tools.current, "the previous tool back");
+            Tools.current = Tool.None;
+            Equal(Tool.None, Tools.current, "no tool");
+            Tools.current = Tool.Move;
+            HelixEditor.EditorTools.ToolManager.activeToolChanging -= a;
+            HelixEditor.EditorTools.ToolManager.activeToolChanged -= b;
+            Equal(typeof(HelixEditor.EditorTools.GameObjectToolContext), HelixEditor.EditorTools.ToolManager.activeContextType, "the GameObject context");
+
+            // The keys: to any window but a text field.
+            SceneView v = EditorWindow.GetWindow<SceneView>();
+            Key(v.viewportInternal, KeyCode.E);
+            Equal(Tool.Rotate, Tools.current, "E: Rotate");
+            Key(v.viewportInternal, KeyCode.Y);
+            Equal(Tool.Transform, Tools.current, "Y: Transform");
+            Key(EditorWindow.GetWindow<HierarchyWindow>().searchFieldInternal, KeyCode.R);
+            Equal(Tool.Transform, Tools.current, "not while typing");
+            Key(v.viewportInternal, KeyCode.W);
+            Equal(Tool.Move, Tools.current, "W: Move");
+        }
+
+        static void Key(Element target, KeyCode key)
+        {
+            using KeyDownEvent e = KeyDownEvent.GetPooled((char)0, key, EventModifiers.None);
+            target.SendEvent(e);
+        }
+
+        // The view straight along +z, orthographic: a world point's place in the panel.
+        static SceneView ToolView(out Func<Vector3, Vector2> panel)
+        {
+            SceneView v = EditorWindow.GetWindow<SceneView>();
+            v.LookAt(Vector3.zero, Quaternion.identity, 4, true, true);
+            v.UpdateInternal();
+            Rect r = v.sceneGuiInternal.worldBound;
+            HandleUtility.SetCameraInternal(v.camera, r.height);
+            panel = w =>
+            {
+                Vector2 g = HandleUtility.WorldToGUIPoint(w);
+                return new Vector2(r.x + g.x, r.y + g.y);
+            };
+            return v;
+        }
+
+        static void ToolHandles()
+        {
+            SceneView v = ToolView(out Func<Vector3, Vector2> at);
+            Element gui = v.sceneGuiInternal;
+            var go = new GameObject("Tooled");
+            Selection.activeGameObject = go;
+            Tools.pivotMode = PivotMode.Pivot;
+            Tools.pivotRotation = PivotRotation.Local;
+            float size = HandleUtility.GetHandleSize(Vector3.zero);
+
+            Tools.current = Tool.Move;
+            Drag(gui, at(Vector3.right * size * 0.6f), at(Vector3.right * (size * 0.6f + 1)));
+            Check((go.transform.position - Vector3.right).magnitude < 0.05f, $"moved along x by the x arrow ({go.transform.position})");
+            Check(EditorSceneManager.GetActiveScene().isDirty, "the scene changed");
+
+            go.transform.position = Vector3.zero;
+            Tools.current = Tool.Rotate;
+            Drag(gui, at(Vector3.up * size), at(Vector3.right * size));
+            float z = go.transform.rotation.eulerAngles.z;
+            Check(Math.Abs(z - 270) < 3, $"turned about z by its ring ({go.transform.rotation.eulerAngles})");
+
+            go.transform.rotation = Quaternion.identity;
+            Tools.current = Tool.Scale;
+            Drag(gui, at(Vector3.right * size), at(Vector3.right * size * 2));
+            Check(Math.Abs(go.transform.localScale.x - 2) < 0.05f && Math.Abs(go.transform.localScale.y - 1) < 1e-3f, $"scaled along x ({go.transform.localScale})");
+
+            go.transform.localScale = Vector3.one;
+            Tools.current = Tool.Rect;
+            float h = size * 0.25f;
+            Drag(gui, at(Vector3.right * h), at(Vector3.right * (h + 1)));
+            Check(Math.Abs(go.transform.position.x - 0.5f) < 0.05f, $"the rectangle's right edge: the pivot half way ({go.transform.position})");
+            Check(Math.Abs(go.transform.localScale.x - (2 * h + 1) / (2 * h)) < 0.05f, $"and wider ({go.transform.localScale}, {h})");
+
+            go.transform.position = Vector3.zero;
+            go.transform.localScale = Vector3.one;
+            Tools.current = Tool.Move;
+            Tools.hidden = true;
+            Drag(gui, at(Vector3.right * size * 0.6f), at(Vector3.right * (size * 0.6f + 1)));
+            Equal(Vector3.zero, go.transform.position, "no handle while hidden");
+            Tools.hidden = false;
+
+            // Center and Global: two objects, the handle between them; turning them turns them about it.
+            var other = new GameObject("Tooled 2");
+            other.transform.position = new Vector3(2, 0, 0);
+            other.transform.rotation = Quaternion.Euler(0, 0, 30);
+            Selection.activeGameObject = other;
+            Selection.objects = new HelixEngine.Object[] { go, other };
+            Check(Selection.activeTransform == other.transform, "the active one kept");
+            Tools.pivotMode = PivotMode.Center;
+            Check((Tools.handlePosition - new Vector3(1, 0, 0)).magnitude < 1e-4f, $"the handle at the center ({Tools.handlePosition})");
+            Tools.pivotMode = PivotMode.Pivot;
+            Equal(new Vector3(2, 0, 0), Tools.handlePosition, "at the active object's pivot");
+            Check(Quaternion.Angle(Tools.handleRotation, other.transform.rotation) < 1e-2f, "turned with it (Local)");
+            Tools.pivotRotation = PivotRotation.Global;
+            Check(Quaternion.Angle(Tools.handleRotation, Quaternion.identity) < 1e-2f, "with the world (Global)");
+            Tools.pivotMode = PivotMode.Center;
+            v = ToolView(out at);
+            Vector3 c = Tools.handlePosition;
+            Tools.current = Tool.Rotate;
+            Drag(gui, at(c + Vector3.up * size), at(c + Vector3.left * size));
+            Check((go.transform.position - new Vector3(1, -1, 0)).magnitude < 0.1f && (other.transform.position - new Vector3(1, 1, 0)).magnitude < 0.1f,
+                  $"both turned about the center ({go.transform.position}, {other.transform.position})");
+            Tools.pivotMode = PivotMode.Pivot;
+            Tools.pivotRotation = PivotRotation.Local;
+            Tools.current = Tool.Move;
+            Selection.objects = Array.Empty<HelixEngine.Object>();
+            HelixEngine.Object.DestroyImmediate(go);
+            HelixEngine.Object.DestroyImmediate(other);
+            v.LookAt(Vector3.zero, Quaternion.Euler(30, -35, 0), 6, false, true);
+        }
+
+        static void ComponentToolsAndSceneGui()
+        {
+            SceneView v = ToolView(out Func<Vector3, Vector2> at);
+            var go = new GameObject("With a probe");
+            go.AddComponent<SceneGuiProbe>();
+            Check(!HelixEditor.EditorTools.ToolRegistry.AvailableInternal().Contains(typeof(ProbeTool)), "a component tool not available unselected");
+            Selection.activeGameObject = go;
+            Check(HelixEditor.EditorTools.ToolRegistry.AvailableInternal().Contains(typeof(ProbeTool)), "available with its component selected");
+            SceneGuiProbeEditor.s_Calls = 0;
+            ProbeTool.s_Calls = 0;
+            Send<PointerMoveEvent>(v.sceneGuiInternal, at(Vector3.one * 3));
+            Check(SceneGuiProbeEditor.s_Calls > 0, "the editor's OnSceneGui called");
+            HelixEditor.EditorTools.ToolManager.SetActiveTool<ProbeTool>();
+            Equal(Tool.Custom, Tools.current, "a custom tool");
+            var tool = (ProbeTool)HelixEditor.EditorTools.ToolManager.activeToolInternal;
+            Check(tool.target is SceneGuiProbe, "its target the component");
+            Send<PointerMoveEvent>(v.sceneGuiInternal, at(Vector3.one * 3));
+            Check(ProbeTool.s_Calls > 0, "its OnToolGUI called");
+            Selection.objects = Array.Empty<HelixEngine.Object>();
+            Equal(Tool.Move, Tools.current, "deselected: the last tool that was not one");
+            SceneGuiProbeEditor.s_Calls = 0;
+            Send<PointerMoveEvent>(v.sceneGuiInternal, at(Vector3.one * 3));
+            Equal(0, SceneGuiProbeEditor.s_Calls, "no OnSceneGui unselected");
+            HelixEngine.Object.DestroyImmediate(go);
+            v.LookAt(Vector3.zero, Quaternion.Euler(30, -35, 0), 6, false, true);
+        }
+
+        static GameObject PickCube(string name, Vector3 at, Vector3 scale)
+        {
+            var go = new GameObject(name);
+            go.transform.position = at;
+            go.transform.localScale = scale;
+            go.AddComponent<MeshFilter>().sharedMesh = CubeMesh();
+            go.AddComponent<MeshRenderer>();
+            return go;
+        }
+
+        // A texel of a render texture at a GUI point (y down), read back.
+        static Color32 TexelAt(RenderTexture rt, Vector2 gui)
+        {
+            var request = HelixEngine.Rendering.AsyncGPUReadback.Request(rt);
+            request.WaitForCompletion();
+            Color32[] px = request.GetData<Color32>().ToArray();
+            int x = Math.Clamp((int)gui.x, 0, rt.width - 1), y = Math.Clamp((int)gui.y, 0, rt.height - 1);
+            return px[(rt.height - 1 - y) * rt.width + x];
+        }
+
+        static void Picking()
+        {
+            SceneView v = ToolView(out Func<Vector3, Vector2> at);
+            Element gui = v.sceneGuiInternal;
+            bool gizmos = v.drawGizmos;
+            v.drawGizmos = false;
+            v.UpdateInternal();
+            GameObject a = PickCube("Pick A", Vector3.zero, new Vector3(3, 3, 1));
+            GameObject b = PickCube("Pick B", new Vector3(3.5f, 0, 3), Vector3.one);
+            GameObject c = PickCube("Pick C", new Vector3(0, 0, 3), new Vector3(3, 3, 1));
+            Rect r = v.sceneGuiInternal.worldBound;
+            Vector2 G(Vector3 w) => at(w) - new Vector2(r.x, r.y);
+
+            Equal(a, HandleUtility.PickGameObject(G(Vector3.zero), false), "the nearest renderer under the point");
+            Equal(c, HandleUtility.PickGameObject(G(Vector3.zero), false, new[] { a }), "the one behind it");
+            Check(HandleUtility.PickGameObject(G(new Vector3(-3, 3.5f, 0)), false) == null, "nothing on empty ground");
+            Equal(a, HandleUtility.PickGameObject(G(Vector3.zero), out int material), "with its material index");
+            Equal(0, material, "the first submesh");
+            GameObject[] inA = HandleUtility.PickRectObjects(Rect.MinMaxRect(G(new Vector3(-1.6f, 1.6f, 0)).x, G(new Vector3(-1.6f, 1.6f, 0)).y,
+                                                                             G(new Vector3(1.4f, -1.6f, 0)).x, G(new Vector3(1.4f, -1.6f, 0)).y));
+            Check(inA.Length == 1 && inA[0] == a, $"a rectangle over A ({inA.Length})");
+            GameObject[] both = HandleUtility.PickRectObjects(Rect.MinMaxRect(G(new Vector3(-2, 2, 0)).x, G(new Vector3(-2, 2, 0)).y,
+                                                                              G(new Vector3(4.2f, -2, 0)).x, G(new Vector3(4.2f, -2, 0)).y));
+            Check(both.Length == 2 && Array.IndexOf(both, a) >= 0 && Array.IndexOf(both, b) >= 0, $"a wider one: A and B, C hidden ({both.Length})");
+
+            // Clicks and drags through the scene GUI.
+            Tools.current = Tool.Move;
+            Selection.objects = Array.Empty<HelixEngine.Object>();
+            // Below and left of A's middle: off the Move handle (its middle square, arrows and planes) once A is selected.
+            Vector2 left = at(new Vector3(-1.2f, -1.2f, 0));
+            Send<PointerDownEvent>(gui, left);
+            Send<PointerUpEvent>(gui, left);
+            Equal(a, Selection.activeGameObject, "a click selects");
+            Send<PointerDownEvent>(gui, left);
+            Send<PointerUpEvent>(gui, left);
+            Equal(c, Selection.activeGameObject, "again: the one behind");
+            Check(Selection.objects.Length == 1, "alone");
+            SceneSelection.Click(G(new Vector3(3.8f, 0, 0)), true);
+            Check(Selection.objects.Length == 2 && Selection.activeGameObject == b, "shift adds (and makes it active)");
+            SceneSelection.Click(G(new Vector3(3.8f, 0, 0)), true);
+            Check(Selection.objects.Length == 1 && Selection.activeGameObject == c, "and takes away");
+            Send<PointerDownEvent>(gui, at(new Vector3(-3, 3.5f, 0)));
+            Send<PointerUpEvent>(gui, at(new Vector3(-3, 3.5f, 0)));
+            Equal(0, Selection.objects.Length, "a click on nothing clears");
+            Drag(gui, at(new Vector3(-2, 2, 0)), at(new Vector3(4.2f, -2, 0)));
+            Check(Selection.objects.Length == 2 && Selection.Contains(a) && Selection.Contains(b), "a drag selects by rectangle");
+            Selection.objects = new HelixEngine.Object[] { c };
+            SceneSelection.SelectRectBeginInternal();
+            SceneSelection.SelectRect(Rect.MinMaxRect(G(new Vector3(-2, 2, 0)).x, G(new Vector3(-2, 2, 0)).y, G(new Vector3(1.5f, -2, 0)).x, G(new Vector3(1.5f, -2, 0)).y), 1);
+            Check(Selection.objects.Length == 2 && Selection.Contains(a) && Selection.Contains(c), "shift adds the rectangle's");
+            SceneSelection.SelectRect(Rect.MinMaxRect(G(new Vector3(-2, 2, 0)).x, G(new Vector3(-2, 2, 0)).y, G(new Vector3(1.5f, -2, 0)).x, G(new Vector3(1.5f, -2, 0)).y), -1);
+            Check(Selection.objects.Length == 1 && Selection.Contains(c), "ctrl takes them away");
+            Tools.current = Tool.View;
+            Selection.objects = Array.Empty<HelixEngine.Object>();
+            Send<PointerDownEvent>(gui, left);
+            Send<PointerUpEvent>(gui, left);
+            Equal(0, Selection.objects.Length, "no selecting with the View tool");
+            Tools.current = Tool.Move;
+
+            // The outline: the selection's edge in its color, nothing inside.
+            Selection.activeGameObject = a;
+            v.UpdateInternal();
+            RenderTexture outline = v.outlineInternal;
+            Check(outline != null, "an outline for a selected renderer");
+            if (outline != null)
+            {
+                Color32 inside = TexelAt(outline, G(Vector3.zero));
+                Color32 edge = TexelAt(outline, G(new Vector3(1.5f, 0, 0)) + new Vector2(1, 0));
+                Equal(0, (int)inside.a, "clear inside the object");
+                Check(edge.a > 200 && edge.r > 200 && edge.g > 60 && edge.g < 140, $"its color just outside ({edge.r}, {edge.g}, {edge.b}, {edge.a})");
+            }
+            Selection.objects = Array.Empty<HelixEngine.Object>();
+            v.UpdateInternal();
+            Check(v.outlineInternal == null, "none without a selection");
+
+            // An icon and a canvas rect.
+            v.drawGizmos = true;
+            var probe = new GameObject("Pick Probe");
+            probe.transform.position = new Vector3(-3, 1.5f, 0);
+            probe.AddComponent<GizmoProbe>();
+            v.UpdateInternal();
+            Equal(probe, HandleUtility.PickGameObject(G(new Vector3(-3, 3f, 0)), false), "a gizmo's icon picks its object");
+            v.drawGizmos = false;
+            var rt = new GameObject("Pick Canvas").AddComponent<RectTransform>();
+            GameObject canvas = rt.gameObject;
+            canvas.AddComponent<Canvas>().renderMode = RenderMode.WorldSpace;
+            rt.position = new Vector3(-3, -3, 0);
+            rt.sizeDelta = new Vector2(1, 1);
+            v.UpdateInternal();
+            Equal(canvas, HandleUtility.PickGameObject(G(new Vector3(-3, -3, 0)), false), "a canvas rect when no renderer is there");
+
+            foreach (GameObject go in new[] { a, b, c, probe, canvas })
+                HelixEngine.Object.DestroyImmediate(go);
+            v.drawGizmos = gizmos;
+            v.LookAt(Vector3.zero, Quaternion.Euler(30, -35, 0), 6, false, true);
+        }
+
+        static void Click(Element e)
+        {
+            Vector2 c = Center(e.worldBound);
+            Send<PointerDownEvent>(e, c);
+            Send<PointerUpEvent>(e, c);
+        }
+
+        static IEnumerable<Element> Descendants(Element root)
+        {
+            foreach (Element c in root.Children())
+            {
+                yield return c;
+                foreach (Element d in Descendants(c))
+                    yield return d;
+            }
+        }
+
+        static void Overlays()
+        {
+            SceneView v = EditorWindow.GetWindow<SceneView>();
+            v.UpdateInternal();
+            HelixEditor.Overlays.OverlayCanvas canvas = v.overlayCanvasInternal;
+            Check(canvas != null, "the Scene view's overlay canvas");
+            if (canvas == null)
+                return;
+            canvas.ResetInternal();
+            var ids = new List<string>();
+            foreach (HelixEditor.Overlays.Overlay o in canvas.overlays)
+                ids.Add(o.id);
+            foreach (string id in new[] { "View Options", "Grid and Snap", "Gizmos", "Tools", "Tool Settings", "Orientation" })
+                Check(ids.Contains(id), $"the overlay {id}");
+            Check(v.TryGetOverlay("Tools", out HelixEditor.Overlays.Overlay tools) && !tools.displayed, "Tools found, hidden at first (the main toolbar has them)");
+            Check(v.TryGetOverlay("View Options", out HelixEditor.Overlays.Overlay options) && options.displayed, "View Options shown");
+            Equal(v, options.containerWindow, "its window");
+            Equal(HelixEditor.Overlays.Layout.HorizontalToolbar, options.layout, "a row in the top row");
+
+            // The classic row: View Options, Grid and Snap from the start, Gizmos at the end.
+            Element top = canvas.topInternal;
+            var rowNames = new List<string>();
+            foreach (Element e in Descendants(top))
+                if (e.name != null && e.name.StartsWith("overlay:", StringComparison.Ordinal))
+                    rowNames.Add(e.name.Substring(8));
+            Equal(new[] { "View Options", "Grid and Snap", "Gizmos" }, rowNames.ToArray(), "the top row in order");
+            Element twoD = top.Find("SceneView/2D"), grid = top.Find("SceneView/Grid");
+            Check(twoD != null && grid != null, "the 2D and grid toggles in the row");
+            tools.displayed = true;
+        }
+
+        static void OverlaysUsed()
+        {
+            SceneView v = EditorWindow.GetWindow<SceneView>();
+            HelixEditor.Overlays.OverlayCanvas canvas = v.overlayCanvasInternal;
+            v.TryGetOverlay("Tools", out HelixEditor.Overlays.Overlay tools);
+            v.TryGetOverlay("View Options", out HelixEditor.Overlays.Overlay options);
+            Element top = canvas.topInternal;
+            var rowNames = new List<string>();
+            Element twoD = top.Find("SceneView/2D"), grid = top.Find("SceneView/Grid");
+            bool wasGrid = v.showGrid;
+            Click(grid);
+            Equal(!wasGrid, v.showGrid, "the grid toggle sets the grid");
+            Click(grid);
+            Click(twoD);
+            Check(v.in2DMode, "2D: the 2D mode");
+            Click(twoD);
+            Check(!v.in2DMode, "and back");
+            v.UpdateInternal();
+            v.FinishEaseInternal();
+
+            // The Tools overlay: the registry's tools, a component's tool when one is selected.
+            Element toolsBox = canvas.ContainerInternal(tools);
+            Check(toolsBox != null && toolsBox.parent != null && toolsBox.parent.ClassListContains("overlay-left-toolbar"), "Tools in the left strip");
+            Equal(HelixEditor.Overlays.Layout.VerticalToolbar, tools.layout, "a column there");
+            Element rotate = toolsBox?.Find("tool:RotateTool");
+            Check(rotate != null && toolsBox.Find("tool:TransformTool") != null, "its tools from the registry");
+            Tools.current = Tool.Move;
+            Check(toolsBox.Find("tool:MoveTool").ClassListContains("on"), "the active one lit");
+            Click(rotate);
+            Equal(Tool.Rotate, Tools.current, "a click picks a tool");
+            Tools.current = Tool.Move;
+            var probe = new GameObject("Overlay Probe");
+            probe.AddComponent<SceneGuiProbe>();
+            Selection.activeGameObject = probe;
+            Check(canvas.ContainerInternal(tools).Find("tool:ProbeTool") != null, "a selected component's tool joins them");
+            Selection.objects = Array.Empty<HelixEngine.Object>();
+            HelixEngine.Object.DestroyImmediate(probe);
+
+            // Moving: onto the row (where it is dropped), floating, to the sides.
+            Rect row = top.worldBound;
+            canvas.DropInternal(tools, new Vector2(row.x + 2, row.center.y), Vector2.zero);
+            Check(tools.m_Zone == HelixEditor.Overlays.DockZone.TopToolbar && tools.layout == HelixEditor.Overlays.Layout.HorizontalToolbar, "onto the row: a row");
+            rowNames.Clear();
+            foreach (Element e in Descendants(top))
+                if (e.name != null && e.name.StartsWith("overlay:", StringComparison.Ordinal))
+                    rowNames.Add(e.name.Substring(8));
+            Equal("Tools", rowNames[0], "first, where it was dropped");
+            Rect h = canvas.hostInternal.worldBound;
+            canvas.DropInternal(tools, new Vector2(h.x + h.width / 2, h.y + h.height / 2), Vector2.zero);
+            Check(tools.floating, "dropped in the middle: floating");
+            Check(Math.Abs(tools.floatingPosition.x - h.width / 2) < 2 && Math.Abs(tools.floatingPosition.y - h.height / 2) < 2, $"where it was dropped ({tools.floatingPosition})");
+            canvas.DropInternal(tools, new Vector2(h.xMax - 5, h.y + 50), Vector2.zero);
+            Check(canvas.ContainerInternal(tools).parent.ClassListContains("overlay-right-toolbar"), "at the right edge: the right strip");
+            HelixEditor.Overlays.Overlay orientation = canvas.Find("Orientation");
+            canvas.DropInternal(orientation, new Vector2(h.x + 5, h.y + 50), Vector2.zero);
+            Check(canvas.ContainerInternal(orientation).parent.ClassListContains("overlay-left-column"), "a panel at the left edge: the left column");
+            Element grip = canvas.ContainerInternal(options).Find("overlay-grip");
+            Drag(grip, Center(grip.worldBound), new Vector2(h.x + 200, h.y + 120));
+            Check(options.floating, "dragged by its grip: floating");
+            options.collapsed = true;
+            orientation.collapsed = true;
+            Check(canvas.ContainerInternal(orientation).childCount == 0, "a collapsed panel without its content");
+            orientation.collapsed = false;
+
+            // Saved with the layout and loaded again.
+            string state = canvas.StateText();
+            Check(state.Contains("Tools=1,"), $"the state ({state})");
+            DockManager.Save("Overlays Test");
+            canvas.ResetInternal();
+            Check(!tools.displayed && !options.floating, "reset: as the attributes say");
+            Check(DockManager.LoadSaved("Overlays Test"), "the layout loads");
+            Check(tools.displayed && tools.m_Zone == HelixEditor.Overlays.DockZone.RightToolbar && options.floating && options.collapsed, "the overlays as saved");
+            var layout = HelixEditor.Docking.DockLayout.Read("layout 1\narea 0 SceneView\nstate overlays:X a=1 b\n");
+            Equal("a=1 b", layout.states["overlays:X"], "a state line read");
+            Check(layout.Write().Contains("state overlays:X a=1 b\n"), "and written");
+            canvas.ResetInternal();
+            Check(DockManager.LoadPreset("Default"), "back to the default layout");
+        }
+
+        static GameObject s_GameCamera, s_SecondCamera;
+
+        // The Game view open, a red camera on Display 1 and a green one on Display 2.
+        static void GameViewOpen()
+        {
+            GameView g = EditorWindow.GetWindow<GameView>();
+            g.ChooseSize(0);
+            g.displayInternal = 0;
+            g.showStats = true;
+            s_GameCamera = new GameObject("Game Camera");
+            Camera red = s_GameCamera.AddComponent<Camera>();
+            red.clearFlags = CameraClearFlags.SolidColor;
+            red.backgroundColor = new Color(1, 0, 0, 1);
+            red.depth = 50;
+            s_SecondCamera = new GameObject("Second Camera");
+            Camera green = s_SecondCamera.AddComponent<Camera>();
+            green.clearFlags = CameraClearFlags.SolidColor;
+            green.backgroundColor = new Color(0, 1, 0, 1);
+            green.targetDisplay = 1;
+        }
+
+        static Color32 GameCenter(GameView g)
+        {
+            RenderTexture t = g.targetInternal;
+            return t == null ? default : TexelAt(t, new Vector2(t.width / 2, t.height / 2));
+        }
+
+        static void GameViewDrawn()
+        {
+            GameView g = EditorWindow.GetWindow<GameView>();
+            Check(g.targetInternal != null, "the view's texture");
+            Color32 c = GameCenter(g);
+            Check(c.r > 240 && c.g < 20 && c.b < 20, $"the game's camera of Display 1 in it ({c.r}, {c.g}, {c.b})");
+            Check(GameViewNative.CameraCount(0) >= 1, "its cameras counted");
+            Equal("", g.messageInternal, "no message with a camera");
+            Check(g.statsTextInternal.Contains("Batches:") && g.statsTextInternal.Contains("Screen: " + g.targetInternal.width + "x"), $"the stats ({g.statsTextInternal})");
+            Element view = g.viewportInternal;
+            Equal(Mathf.RoundToInt(view.layout.width), g.targetInternal.width, "Free Aspect: the view's width");
+            g.displayInternal = 1;
+        }
+
+        static void GameViewSecondDisplay()
+        {
+            GameView g = EditorWindow.GetWindow<GameView>();
+            Color32 c = GameCenter(g);
+            Check(c.g > 240 && c.r < 20, $"Display 2: its camera ({c.r}, {c.g}, {c.b})");
+            Equal(1, GameViewNative.CameraCount(1), "only that one");
+            g.displayInternal = 4;
+        }
+
+        static void GameViewNoCamera()
+        {
+            GameView g = EditorWindow.GetWindow<GameView>();
+            Equal(0, GameViewNative.CameraCount(4), "Display 5: none");
+            Equal("Display 5\nNo cameras rendering", g.messageInternal, "the message");
+            Color32 c = GameCenter(g);
+            Check(c.r < 10 && c.g < 10 && c.b < 10, $"black ({c.r}, {c.g}, {c.b})");
+            g.displayInternal = 0;
+
+            // Sizes, scale, pan.
+            Vector2 view = new Vector2(g.viewportInternal.layout.width, g.viewportInternal.layout.height);
+            int aspect = -1, full = -1;
+            for (int i = 0; i < GameView.sizesInternal.Count; i++)
+            {
+                if (GameView.sizesInternal[i].name == "16:9 Aspect")
+                    aspect = i;
+                if (GameView.sizesInternal[i].name.StartsWith("Full HD", StringComparison.Ordinal))
+                    full = i;
+            }
+            Check(aspect > 0 && full > 0, "the sizes from Settings/GameViewSizes.json");
+            g.ChooseSize(aspect);
+            Vector2Int r = g.Resolution(view);
+            Check(Math.Abs(r.x / (float)r.y - 16f / 9) < 0.02f && (r.x <= view.x + 0.5f && r.y <= view.y + 0.5f) && (Math.Abs(r.x - view.x) < 1 || Math.Abs(r.y - view.y) < 1),
+                  $"16:9: the largest in the view ({r}, {view})");
+            g.ChooseSize(full);
+            Equal(new Vector2Int(1920, 1080), new Vector2Int(g.targetInternal.width, g.targetInternal.height), "Full HD: its resolution");
+            float fit = Math.Min(view.x / 1920, view.y / 1080);
+            Check(Math.Abs(g.minScaleInternal - fit) < 1e-3f && Math.Abs(g.scaleInternal - fit) < 1e-3f, $"fitting at first ({g.scaleInternal}, {fit})");
+            g.SetScale(2, null);
+            Equal(2f, g.scaleInternal, "scaled 2x");
+            Equal(3840f, g.imageInternal.style.width.value.value, "the image twice as wide");
+            Vector2 p = new Vector2(view.x * 0.25f, view.y * 0.25f);
+            float left = g.imageInternal.style.left.value.value, top = g.imageInternal.style.top.value.value;
+            Vector2 under = new Vector2((p.x - left) / 2, (p.y - top) / 2);
+            g.SetScale(3, p);
+            left = g.imageInternal.style.left.value.value;
+            top = g.imageInternal.style.top.value.value;
+            Vector2 after = new Vector2((p.x - left) / 3, (p.y - top) / 3);
+            Check((after - under).magnitude < 0.5f, $"zoomed about the pointer: the same pixel under it ({under}, {after})");
+            g.SetScale(99, null);
+            Equal(5f, g.scaleInternal, "at most 5x");
+            g.PanByInternal(new Vector2(100000, 0));
+            Check(Math.Abs(g.panInternal.x - (1920 * 5 - view.x) / 2) < 0.5f, $"panned at most to the edge ({g.panInternal.x})");
+
+            // A custom size through PlayModeWindow.
+            PlayModeWindow.SetCustomRenderingResolution(800, 600, "Test 800x600");
+            Check(GameView.sizesInternal[g.sizeIndexInternal].name == "Test 800x600", "a custom size added and chosen");
+            PlayModeWindow.GetRenderingResolution(out uint w, out uint h);
+            Check(w == 800 && h == 600, $"the rendering resolution ({w}x{h})");
+            Equal(new Vector2(800, 600), Handles.GetMainGameViewSize(), "Handles.GetMainGameViewSize");
+
+            // The play mode: maximized while it lasts.
+            g.playModeInternal = GameView.PlayMode.Maximized;
+            Check(PlayModeWindow.GetPlayModeFocused(), "focused when maximized");
+            EditorApplication.isPlaying = true;
+            Check(g.maximized, "maximized on entering the play mode");
+            EditorApplication.isPlaying = false;
+            Check(!g.maximized, "back on leaving it");
+            PlayModeWindow.SetPlayModeFocused(false);
+            Equal(GameView.PlayMode.Unfocused, g.playModeInternal, "unfocused");
+            g.playModeInternal = GameView.PlayMode.Focused;
+            g.ChooseSize(0);
+            g.showStats = false;
+            HelixEngine.Object.DestroyImmediate(s_GameCamera);
+            HelixEngine.Object.DestroyImmediate(s_SecondCamera);
+        }
+
         static void Guids()
         {
             GUID g = AssetDatabase.GUIDFromAssetPath("Assets/Textures/Checker.png");
@@ -1684,6 +2483,135 @@ namespace HelixEditor.Tests
             GameObject cam = GameObject.Find("Main Camera");
             cam.AddComponent<Inspected>();
             Selection.activeObject = cam;
+        }
+
+        /// <summary>A cube's mesh (its faces apart, their normals out).</summary>
+        internal static Mesh CubeMesh()
+        {
+            var v = new System.Collections.Generic.List<Vector3>();
+            var n = new System.Collections.Generic.List<Vector3>();
+            var t = new System.Collections.Generic.List<int>();
+            Vector3[] axes = { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };
+            foreach (Vector3 f in axes)
+            {
+                Vector3 u = Math.Abs(f.y) > 0.5f ? Vector3.right : Vector3.up;
+                Vector3 r = Vector3.Cross(u, f);
+                int b = v.Count;
+                v.Add((f - r - u) * 0.5f);
+                v.Add((f + r - u) * 0.5f);
+                v.Add((f + r + u) * 0.5f);
+                v.Add((f - r + u) * 0.5f);
+                for (int i = 0; i < 4; i++)
+                    n.Add(f);
+                t.AddRange(new[] { b, b + 1, b + 2, b, b + 2, b + 3 });
+            }
+            var m = new Mesh { name = "Cube" };
+            m.vertices = v.ToArray();
+            m.normals = n.ToArray();
+            m.triangles = t.ToArray();
+            m.RecalculateBounds();
+            return m;
+        }
+
+        /// <summary>For a look: a few cubes on a ground seen by the Scene view.</summary>
+        public static void ShowSceneViewLook()
+        {
+            Mesh cube = CubeMesh();
+            Material material = HelixEngine.Rendering.GraphicsSettings.currentRenderPipeline?.defaultMaterial;
+            if (material == null)
+            {
+                bool physical = HelixEngine.Rendering.GraphicsSettings.currentRenderPipeline?.GetType().Name.Contains("Physical") == true;
+                material = new Material(Shader.Find(physical ? "Physical/OpenPBR Lite" : "Universal Render Pipeline/Lit"));
+            }
+            void Make(string name, Vector3 at, Vector3 scale)
+            {
+                var go = new GameObject(name);
+                go.transform.localPosition = at;
+                go.transform.localScale = scale;
+                go.AddComponent<MeshFilter>().sharedMesh = cube;
+                go.AddComponent<MeshRenderer>().sharedMaterial = material;
+            }
+            Make("Ground", new Vector3(0, -0.05f, 0), new Vector3(10, 0.1f, 10));
+            Make("Cube A", new Vector3(-1.5f, 0.5f, 0), Vector3.one);
+            Make("Cube B", new Vector3(1.5f, 1, 1), new Vector3(1, 2, 1));
+            Make("Cube C", new Vector3(0, 0.25f, -2), new Vector3(2, 0.5f, 0.5f));
+            SceneView view = EditorWindow.GetWindow<SceneView>();
+            view.LookAt(new Vector3(0, 0.5f, 0), Quaternion.Euler(30, -35, 0), 4, false, true);
+        }
+
+        /// <summary>For a look: the cubes seen by the scene's Main Camera in the Game view (16:9, the stats shown;
+        /// -game-size N picks another size, -game-scale S a scale).</summary>
+        public static void ShowGameLook()
+        {
+            ShowSceneViewLook();
+            GameView g = EditorWindow.GetWindow<GameView>();
+            string[] args = Environment.GetCommandLineArgs();
+            int size = GameView.sizesInternal.Count > 5 ? 5 : 0;
+            float scale = 0;
+            for (int i = 0; i + 1 < args.Length; i++)
+            {
+                if (args[i] == "-game-size")
+                    int.TryParse(args[i + 1], out size);
+                if (args[i] == "-game-scale")
+                    float.TryParse(args[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out scale);
+            }
+            g.ChooseSize(size);
+            g.showStats = true;
+            if (scale > 0)
+            {
+                int frames = 0;
+                Action later = null;
+                later = () =>
+                {
+                    if (++frames < 3)
+                        return;
+                    EditorApplication.update -= later;
+                    g.SetScale(scale, null);
+                };
+                EditorApplication.update += later;
+            }
+        }
+
+        /// <summary>For a look: the cubes, Cube B selected with the tool of -tool (Move by default), a probe with a
+        /// gizmo and an editor's OnSceneGui.</summary>
+        public static void ShowToolsLook()
+        {
+            ShowSceneViewLook();
+            var probe = new GameObject("Probe");
+            probe.transform.position = new Vector3(-2, 1, 2);
+            probe.AddComponent<GizmoProbe>();
+            probe.AddComponent<SceneGuiProbe>();
+            string[] args = Environment.GetCommandLineArgs();
+            Tool tool = Tool.Move;
+            for (int i = 0; i + 1 < args.Length; i++)
+                if (args[i] == "-tool" && Enum.TryParse(args[i + 1], out Tool t))
+                    tool = t;
+            Tools.current = tool;
+            Selection.activeGameObject = GameObject.Find("Cube B");
+            // -all-overlays: every overlay of the Scene view shown (Tools and Tool Settings too).
+            if (Array.IndexOf(args, "-all-overlays") >= 0 && EditorWindow.GetWindow<SceneView>().overlayCanvasInternal is HelixEditor.Overlays.OverlayCanvas canvas)
+                foreach (HelixEditor.Overlays.Overlay o in canvas.overlays)
+                    o.displayed = true;
+        }
+
+        /// <summary>For a look: the cubes, the camera and light selected, a gizmo script, handles from duringSceneGui.</summary>
+        public static void ShowHandlesLook()
+        {
+            ShowSceneViewLook();
+            var probe = new GameObject("Probe");
+            probe.transform.position = new Vector3(-2, 1, 2);
+            probe.AddComponent<GizmoProbe>();
+            Selection.objects = new HelixEngine.Object[] { GameObject.Find("Main Camera"), GameObject.Find("Directional Light"), probe };
+            Vector3 p = new Vector3(1.5f, 2.2f, 1);
+            Quaternion r = Quaternion.identity;
+            SceneView.duringSceneGui += v =>
+            {
+                p = Handles.PositionHandle(p, Quaternion.identity);
+                r = Handles.RotationHandle(r, new Vector3(0, 0.5f, -2));
+                Handles.color = Color.white;
+                Handles.Label(p + Vector3.up * 0.3f, "PositionHandle");
+            };
+            EditorWindow.GetWindow<SceneView>().LookAt(new Vector3(0, 0.5f, 0), Quaternion.Euler(30, -35, 0), 6, false, true);
         }
 
         /// <summary>For a look: the Inspector's Add Component list with a search.</summary>

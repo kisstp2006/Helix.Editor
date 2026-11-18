@@ -1,0 +1,15 @@
+{
+  "comment": "The Game view's sizes in its aspect dropdown, in order: free (the view's own size), an aspect (the largest rectangle of it in the view) or a fixed resolution. PlayModeWindow.SetCustomRenderingResolution adds custom fixed ones after these (kept per project).",
+  "sizes": [
+    { "name": "Free Aspect", "kind": "free" },
+    { "name": "5:4 Aspect", "kind": "aspect", "width": 5, "height": 4 },
+    { "name": "4:3 Aspect", "kind": "aspect", "width": 4, "height": 3 },
+    { "name": "3:2 Aspect", "kind": "aspect", "width": 3, "height": 2 },
+    { "name": "16:10 Aspect", "kind": "aspect", "width": 16, "height": 10 },
+    { "name": "16:9 Aspect", "kind": "aspect", "width": 16, "height": 9 },
+    { "name": "Full HD (1920x1080)", "kind": "fixed", "width": 1920, "height": 1080 },
+    { "name": "HD (1280x720)", "kind": "fixed", "width": 1280, "height": 720 },
+    { "name": "QHD (2560x1440)", "kind": "fixed", "width": 2560, "height": 1440 },
+    { "name": "4K UHD (3840x2160)", "kind": "fixed", "width": 3840, "height": 2160 }
+  ]
+}

@@ -58,35 +58,4 @@ namespace HelixEditor
 #pragma warning restore CA2255
         internal static void Init() => ScriptBridge.WhenBindingsLoaded(EditorApplication.Hook);
     }
-
-    /// <summary>The scene view's tools; the current one shows lit in the main toolbar.</summary>
-    public enum Tool
-    {
-        View = 0,
-        Move = 1,
-        Rotate = 2,
-        Scale = 3,
-        Rect = 4,
-        Transform = 5,
-        Custom = 6,
-        None = -1,
-    }
-
-    public static class Tools
-    {
-        static Tool s_Current = Tool.Move;
-
-        public static Tool current
-        {
-            get => s_Current;
-            set
-            {
-                if (s_Current == value)
-                    return;
-                s_Current = value;
-                foreach (string id in DefaultToolbar.ToolIds)
-                    Toolbars.MainToolbar.Refresh(id);
-            }
-        }
-    }
 }

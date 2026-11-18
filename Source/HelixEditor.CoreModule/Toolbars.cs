@@ -108,7 +108,8 @@ namespace HelixEditor.Toolbars
     /// <summary>The main toolbar: its elements are made again (Refresh) when what they show changes.</summary>
     public static class MainToolbar
     {
-        static readonly Dictionary<string, (MethodInfo method, MainToolbarElementAttribute attribute)> s_Methods = new();
+        // Each element's maker and its default place: a method of the attribute, or one a registry gave (the tools').
+        static readonly Dictionary<string, (Func<MainToolbarElement> make, MainToolbarDockPosition position, int index)> s_Methods = new();
         static readonly Dictionary<string, MainToolbarElement> s_Elements = new();
         static bool s_Hooked;
 
@@ -154,7 +155,8 @@ namespace HelixEditor.Toolbars
                     var a = m.GetCustomAttribute<MainToolbarElementAttribute>(false);
                     if (a == null || !typeof(MainToolbarElement).IsAssignableFrom(m.ReturnType))
                         continue;
-                    s_Methods[a.path] = (m, a);
+                    MethodInfo method = m;
+                    s_Methods[a.path] = (() => method.Invoke(null, null) as MainToolbarElement, a.defaultDockPosition, a.defaultDockIndex);
                     Make(a.path, true);
                 }
         }
@@ -166,7 +168,7 @@ namespace HelixEditor.Toolbars
             MainToolbarElement e;
             try
             {
-                e = entry.method.Invoke(null, null) as MainToolbarElement;
+                e = entry.make();
             }
             catch (TargetInvocationException ex)
             {
@@ -178,8 +180,8 @@ namespace HelixEditor.Toolbars
             if (e is MainToolbarToggle toggle)
                 toggle.id = id;
             s_Elements[id] = e;
-            var group = (ToolbarGroup)(int)entry.attribute.defaultDockPosition;
-            int order = entry.attribute.defaultDockIndex;
+            var group = (ToolbarGroup)(int)entry.position;
+            int order = entry.index;
             if (!place && EditorToolbar.Exists(id))
             {
                 // A refresh keeps the element's place.
@@ -196,6 +198,21 @@ namespace HelixEditor.Toolbars
             }
             EditorToolbar.AddManagedInternal(id, group, order, e.kind, e.strip ?? "", e.content.icon ?? "", e.content.text ?? "", e.content.tooltip ?? "",
                                              e.on, e.enabled);
+        }
+
+        // An element a registry makes (not a method with the attribute): placed now, made again by Refresh.
+        internal static void RegisterInternal(string path, MainToolbarDockPosition position, int index, Func<MainToolbarElement> make)
+        {
+            s_Methods[path] = (make, position, index);
+            Make(path, true);
+        }
+
+        // The element gone from the toolbar.
+        internal static void RemoveInternal(string path)
+        {
+            if (s_Methods.Remove(path))
+                s_Elements.Remove(path);
+            EditorToolbar.Remove(path);
         }
 
         /// <summary>The element of the path made again from its method (what it shows changed).</summary>

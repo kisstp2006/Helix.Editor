@@ -213,7 +213,7 @@ namespace HelixEditor.UIElements
         internal static Type EnumTypeOf(SerializedProperty p)
         {
             Editors.FieldOf(p.serializedObject.targetObject.GetType(), p.propertyPath, out Type t);
-            return t != null && t.IsEnum ? t : null;
+            return t != null && t.IsEnum ? t : p.EnumTypeInternal();
         }
     }
 

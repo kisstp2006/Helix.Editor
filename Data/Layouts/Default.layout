@@ -1,7 +1,8 @@
 layout 1
-split column 0.7 0.3
-  split row 0.22 0.52 0.26
-    area 0 HierarchyWindow
-    area 0 SceneView GameView
-    area 0 InspectorWindow
-  area 0 ProjectWindow ConsoleWindow
+split row 0.764 0.236
+  split column 0.592 0.408
+    split row 0.248 0.752
+      area 0 HierarchyWindow
+      area 0 SceneView GameView
+    area 0 ProjectWindow ConsoleWindow
+  area 0 InspectorWindow

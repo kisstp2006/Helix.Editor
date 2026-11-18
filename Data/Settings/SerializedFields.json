@@ -17,5 +17,9 @@
     "BoundsInt": ["BoundsInt", "m_Position", "m_Size"],
     "Hash128": ["Hash128"],
     "BitField": ["LayerMask", "m_Bits"]
+  },
+  "comment3": "Native classes' serialized fields whose C# member has another name (Class.path: member); the member's type tells an enum. Otherwise a top-level m_Name is the member name.",
+  "members": {
+    "Light.m_Shadows.m_Type": "shadows"
   }
 }

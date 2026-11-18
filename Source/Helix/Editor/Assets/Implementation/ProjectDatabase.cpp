@@ -84,6 +84,8 @@ namespace helix::editor
             ProjectAssetSource* source = nullptr;
             i32 deferred = 0;
             bool pending = false;
+            // Paths CreateAsset wrote from objects in memory (lower case), until a refresh finds them.
+            Array<String> created;
         };
 
         State& S()
@@ -519,9 +521,22 @@ namespace helix::editor
         // The engine's catalog anew (assets whose artifacts are no longer current load from their files).
         if (!changes.Empty())
             engine::RefreshAssets();
-        // Loaded assets whose file or settings changed load again into their objects.
+        // Loaded assets whose file or settings changed load again into their objects (not those CreateAsset wrote:
+        // their objects are the file's).
         for (const String& path : changes.imported)
-            Reimport(path.View());
+        {
+            String lower = Lower(path.View());
+            bool created = false;
+            for (usize i = 0; i < S().created.Size(); i++)
+                if (S().created[i] == lower)
+                {
+                    S().created.RemoveAt(i);
+                    created = true;
+                    break;
+                }
+            if (!created)
+                Reimport(path.View());
+        }
         // New and changed assets are imported (their artifacts written as their loads finish).
         for (const String& path : changes.imported)
             if (const AssetRecord* r = ByPath(path.View()))
@@ -530,6 +545,8 @@ namespace helix::editor
             ImportNative::PostprocessAll(changes);
         return changes;
     }
+
+    void ProjectDatabase::CreatedInMemory(StringView path) { S().created.Push(Lower(path)); }
 
     bool ProjectDatabase::Reimport(StringView path)
     {

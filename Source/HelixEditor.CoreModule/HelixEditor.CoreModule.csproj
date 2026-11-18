@@ -35,6 +35,21 @@
       <Private>false</Private>
     </Reference>
   </ItemGroup>
+  <!-- The pipelines' assemblies: loaded with the editor, their classes are the C# types of the pipelines' objects. -->
+  <ItemGroup Condition="'$(HelixRenderPipelinesCore)' != ''">
+    <Reference Include="Helix.RenderPipelines.Core.Runtime">
+      <HintPath>$(HelixRenderPipelinesCore)</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Helix.RenderPipelines.Standard.Runtime">
+      <HintPath>$(HelixRenderPipelinesStandard)</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Helix.RenderPipelines.Physical.Runtime">
+      <HintPath>$(HelixRenderPipelinesPhysical)</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
   <!-- The C# bindings of the native module HelixEditor (Helix.Bindgen's output). -->
   <ItemGroup Condition="'$(HelixModuleBindings)' != ''">
     <Compile Include="$(HelixModuleBindings)" />

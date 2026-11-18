@@ -13,11 +13,14 @@ namespace HelixEditor
         static EditorShell s_Shell;
         static string s_Pending = "Ready";
 
-        Element m_Root, m_MenuBar, m_Maximize;
+        Element m_Root, m_MenuBar, m_Maximize, m_KeyRoot;
         Label m_Title, m_Status;
         readonly Element[] m_Groups = new Element[3];
         uint m_MenuVersion, m_ToolbarVersion;
         bool m_Maximized;
+
+        // The keys no window took (no text being edited): the registries' shortcuts (the tools' Q W E R T Y).
+        internal static event System.Action<KeyDownEvent> shortcutKeyInternal;
 
         /// <summary>A message in the status bar.</summary>
         public static void Status(string message)
@@ -69,10 +72,32 @@ namespace HelixEditor
             m_Maximized = !EditorApplication.IsWindowMaximizedInternal();
             m_Root.Find<Button>("caption-close").clicked += EditorApplication.CloseWindowInternal;
             m_MenuVersion = m_ToolbarVersion = uint.MaxValue;
+            if (m_KeyRoot != m_Root)
+            {
+                m_KeyRoot = m_Root;
+                m_Root.RegisterCallback<KeyDownEvent>(OnShortcutKey);
+            }
             Rebuild();
             Element dock = m_Root.Find("dock-root");
             if (dock != null)
                 DockManager.Attach(dock);
+        }
+
+        static void OnShortcutKey(KeyDownEvent e)
+        {
+            if (shortcutKeyInternal == null || EditorGuiUtility.editingTextField || IsTextInput(e.target as Element))
+                return;
+            shortcutKeyInternal(e);
+        }
+
+        // A text field (or a part of one) has the key.
+        static bool IsTextInput(Element e)
+        {
+            for (; e != null; e = e.parent)
+                for (System.Type t = e.GetType(); t != null; t = t.BaseType)
+                    if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(TextInputBaseField<>))
+                        return true;
+            return false;
         }
 
         static void RestoreScenes()
@@ -348,6 +373,12 @@ namespace HelixEditor
                 icon.AddToClassList("icon");
                 icon.AddToClassList("icon-" + Kebab(data.icon));
                 button.Add(icon);
+                // An icon and a text: both, side by side (Pivot, Local).
+                if (!string.IsNullOrEmpty(data.text))
+                {
+                    button.AddToClassList("with-text");
+                    button.Add(new Label(data.text));
+                }
             }
             else
                 button.text = data.text;

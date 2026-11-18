@@ -233,6 +233,11 @@ namespace HelixEditor.Docking
                     v.HideIndicator();
         }
 
+        /// <summary>A window's own state the layout keeps (null: none).</summary>
+        internal static string StateOf(string key) => s_Layout.states.TryGetValue(key, out string v) ? v : null;
+
+        internal static void SetStateInternal(string key, string value) => s_Layout.states[key] = value ?? "";
+
         public static void Load(DockLayout layout)
         {
             s_Layout = layout ?? new DockLayout();
@@ -245,6 +250,7 @@ namespace HelixEditor.Docking
                     w?.Close();
                 }
             Changed();
+            Overlays.OverlayCanvas.LayoutLoadedInternal();
         }
 
         public static bool LoadText(string text)
@@ -299,6 +305,7 @@ namespace HelixEditor.Docking
             try
             {
                 Directory.CreateDirectory(ProjectLayouts);
+                Overlays.OverlayCanvas.CollectStatesInternal();
                 File.WriteAllText(Path.Combine(ProjectLayouts, name + ".layout"), s_Layout.Write());
             }
             catch (Exception e)

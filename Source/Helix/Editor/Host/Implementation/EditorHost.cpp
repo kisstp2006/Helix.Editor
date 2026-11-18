@@ -12,6 +12,7 @@
 #include <Helix/Core/Logging/Log.h>
 #include <Helix/Core/Strings/Format.h>
 #include <Helix/Engine/Asset/Asset.h>
+#include <Helix/Engine/Rendering/Graphics.h>
 #include <Helix/Engine/Rendering/Pipeline/RenderPipeline.h>
 #include <Helix/Engine/Script/ScriptRuntime.h>
 #include <Helix/Engine/Script/ScriptableObject.h>
@@ -301,6 +302,9 @@ namespace helix::editor
         }
         EditorApplication::SetHost(window, editor.projectPath.View(), platform::ExecutablePath().View());
         EditorApplication::SetDataPath(options.dataFolder.View());
+        // The editor's own content (its DontDestroyOnLoad scene) apart from the game's: the windows draw the editor's,
+        // the Game view gets the game's displays.
+        engine::Graphics::SetSeparateEditorContent(true);
         EditorApplication::SetExecuteMethod(editor.executeMethod.View());
         engine::FolderAssetSource* shaders = LoadShaders();
         OpenProject(options.dataFolder.View(), editor.projectPath.View());

@@ -5,7 +5,7 @@ namespace HelixEditor
 {
     // The main windows as placeholders: each loads its UI (toolbar and content) from its markup in the editor's data
     // folder (UI/Windows/<Window>.hxml); their content comes with the later steps (the
-    // scene and game views with step 5, the project window and console with step 6).
+    // game view with step 5, the project window and console with step 6).
     internal static class WindowMarkup
     {
         internal static void Load(EditorWindow window, string path)
@@ -15,28 +15,6 @@ namespace HelixEditor
             else
                 Debug.LogWarning($"{window.GetType().Name}: no markup at {path} in the editor's data folder.");
         }
-    }
-
-    public sealed class SceneView : EditorWindow
-    {
-        void OnEnable()
-        {
-            titleContent = new GuiContent("Scene");
-            WindowMarkup.Load(this, "UI/Windows/SceneView.hxml");
-        }
-
-        [MenuItem("Window/General/Scene %1", false, 21)] static void Open() => GetWindow<SceneView>();
-    }
-
-    public sealed class GameView : EditorWindow
-    {
-        void OnEnable()
-        {
-            titleContent = new GuiContent("Game");
-            WindowMarkup.Load(this, "UI/Windows/GameView.hxml");
-        }
-
-        [MenuItem("Window/General/Game %2", false, 22)] static void Open() => GetWindow<GameView>();
     }
 
     public sealed class ProjectWindow : EditorWindow

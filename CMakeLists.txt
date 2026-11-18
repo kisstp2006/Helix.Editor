@@ -63,7 +63,8 @@ ${editor_modules_rows}    };
     list(FILTER editor_bound_headers EXCLUDE REGEX "/(Implementation|Host)/")
     set(editor_references "${editor_engine_source}/Helix/Engine/Object/EntityId.h" "${editor_engine_source}/Helix/Engine/Object/Object.h"
         "${editor_engine_source}/Helix/Engine/Scene/Scene.h" "${editor_engine_source}/Helix/Engine/GameObject/GameObject.h"
-        "${editor_engine_source}/Helix/Engine/Transform/Transform.h"
+        "${editor_engine_source}/Helix/Engine/Transform/Transform.h" "${editor_engine_source}/Helix/Engine/Texture/Texture.h"
+        "${editor_engine_source}/Helix/Engine/Texture/RenderTexture.h"
         "${editor_math_dir}/Source/Helix/Math/Vector.h" "${editor_math_dir}/Source/Helix/Math/Geometry.h")
     helix_bindgen(helix_editor MODULE HelixEditor NAMESPACE HelixEditor KIND NativeGame HEADERS ${editor_bound_headers}
                   REFERENCES ${editor_references} REFERENCE_NAMESPACE HelixEngine
@@ -80,13 +81,15 @@ ${editor_modules_rows}    };
     list(FILTER editor_cs_sources EXCLUDE REGEX "/(bin|obj)/")
     get_filename_component(editor_runtime_dir "${HELIX_SCRIPTING_RUNTIME}" DIRECTORY)
     get_filename_component(editor_runtime_name "${HELIX_SCRIPTING_RUNTIME}" NAME_WLE)
+    # The engine's assemblies, the pipelines' among them (the editor's C# sees their assets and components).
     set(editor_engine_assemblies "${HELIX_SCRIPTING_RUNTIME}" "${HELIX_CORE_MODULE}" ${HELIX_CORE_MODULE_REFERENCES} "${HELIX_UI_RUNTIME}"
-        "${HELIX_CANVASUI_RUNTIME}")
+        "${HELIX_CANVASUI_RUNTIME}" "${HELIX_RENDER_PIPELINES_CORE}" "${HELIX_RENDER_PIPELINES_STANDARD}" "${HELIX_RENDER_PIPELINES_PHYSICAL}")
     add_custom_command(
         OUTPUT "${editor_managed}/.staged"
         COMMAND "${HELIX_DOTNET}" build "${editor_core_dir}/HelixEditor.CoreModule.csproj" -c Release --artifacts-path "${editor_artifacts}" --nologo -v quiet
                 "-p:HelixCoreModule=${HELIX_CORE_MODULE}" "-p:HelixScriptingRuntime=${HELIX_SCRIPTING_RUNTIME}" "-p:HelixUIRuntime=${HELIX_UI_RUNTIME}"
-                "-p:HelixModuleBindings=${editor_cs}"
+                "-p:HelixModuleBindings=${editor_cs}" "-p:HelixRenderPipelinesCore=${HELIX_RENDER_PIPELINES_CORE}"
+                "-p:HelixRenderPipelinesStandard=${HELIX_RENDER_PIPELINES_STANDARD}" "-p:HelixRenderPipelinesPhysical=${HELIX_RENDER_PIPELINES_PHYSICAL}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${editor_managed}"
         COMMAND "${CMAKE_COMMAND}" -E copy "${editor_core_dll}" ${editor_engine_assemblies} "${editor_runtime_dir}/${editor_runtime_name}.runtimeconfig.json"
                 "${editor_managed}"
@@ -94,13 +97,31 @@ ${editor_modules_rows}    };
         DEPENDS ${editor_cs_sources} ${editor_engine_assemblies} "${editor_cs}"
         COMMENT "Building HelixEditor.CoreModule")
     add_custom_target(helix_editor_managed ALL DEPENDS "${editor_managed}/.staged")
-    add_dependencies(helix_editor_managed helix_ui_runtime helix_canvasui_runtime helix_core_module helix_scripting_runtime helix_editor)
+    add_dependencies(helix_editor_managed helix_ui_runtime helix_canvasui_runtime helix_core_module helix_scripting_runtime helix_editor
+                     helix_render_pipelines_core_runtime helix_render_pipelines_standard_runtime helix_render_pipelines_physical_runtime)
     add_dependencies(helix_editor helix_core_module)
 
-    # The shader assemblies beside the host: the core's library and shaders, both pipelines', the UI's, the canvas UI's.
+    # The editor's own C# shaders (the scene view's grid).
+    helix_dependency_dir(editor_shaders_dir Shaders)
+    set(editor_own_shaders_artifacts "${CMAKE_BINARY_DIR}/HelixEditorShaders")
+    set(editor_own_shaders_dll "${editor_own_shaders_artifacts}/bin/HelixEditor.Shaders/release/HelixEditor.Shaders.dll")
+    file(GLOB_RECURSE editor_own_shader_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/*.cs" "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/*.csproj"
+         "${editor_shaders_dir}/Source/*.cs" "${editor_engine_dir}/Shaders/*.cs")
+    list(FILTER editor_own_shader_sources EXCLUDE REGEX "/(bin|obj)/")
+    add_custom_command(
+        OUTPUT "${editor_own_shaders_dll}"
+        COMMAND "${HELIX_DOTNET}" build "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/HelixEditor.Shaders.csproj" -c Release
+                --artifacts-path "${editor_own_shaders_artifacts}" --nologo -v quiet "-p:HelixShadersDir=${editor_shaders_dir}" "-p:HelixEngineDir=${editor_engine_dir}"
+        DEPENDS ${editor_own_shader_sources}
+        COMMENT "Building the editor's C# shaders")
+    add_custom_target(helix_editor_own_shaders ALL DEPENDS "${editor_own_shaders_dll}")
+
+    # The shader assemblies beside the host: the core's library and shaders, both pipelines', the UI's, the canvas UI's,
+    # the editor's own.
     set(editor_shaders_out "${CMAKE_BINARY_DIR}/Shaders")
     set(editor_shader_assemblies "${HELIX_RENDER_PIPELINES_CORE_SHADER_LIBRARY}" "${HELIX_RENDER_PIPELINES_CORE_SHADERS}"
-        "${HELIX_RENDER_PIPELINES_STANDARD_SHADERS}" "${HELIX_RENDER_PIPELINES_PHYSICAL_SHADERS}" "${HELIX_UI_SHADERS}" "${HELIX_CANVASUI_SHADERS}")
+        "${HELIX_RENDER_PIPELINES_STANDARD_SHADERS}" "${HELIX_RENDER_PIPELINES_PHYSICAL_SHADERS}" "${HELIX_UI_SHADERS}" "${HELIX_CANVASUI_SHADERS}"
+        "${editor_own_shaders_dll}")
     add_custom_command(
         OUTPUT "${editor_shaders_out}/.staged"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${editor_shaders_out}"
@@ -110,7 +131,7 @@ ${editor_modules_rows}    };
         COMMENT "Staging the editor's shader assemblies")
     add_custom_target(helix_editor_shaders ALL DEPENDS "${editor_shaders_out}/.staged")
     add_dependencies(helix_editor_shaders helix_render_pipelines_core_shaders helix_render_pipelines_standard_shaders
-                     helix_render_pipelines_physical_shaders helix_ui_shaders helix_canvasui_shaders)
+                     helix_render_pipelines_physical_shaders helix_ui_shaders helix_canvasui_shaders helix_editor_own_shaders)
     add_dependencies(helix_editor helix_editor_shaders)
 
     if(HELIX_BUILD_TESTS AND PROJECT_IS_TOP_LEVEL)

@@ -1,0 +1,11 @@
+{
+  "comment": "The built-in tools in the main toolbar's tools strip, in order: the Tool they are, their EditorTool class, icon (Data/Skin/Icons), shortcut key (no modifier) and tooltip. Registered like any [EditorTool]; a plugin's tools join the same registry.",
+  "tools": [
+    { "tool": "View", "class": "HelixEditor.ViewModeTool", "icon": "ToolView", "key": "Q", "tooltip": "View Tool" },
+    { "tool": "Move", "class": "HelixEditor.MoveTool", "icon": "ToolMove", "key": "W", "tooltip": "Move Tool" },
+    { "tool": "Rotate", "class": "HelixEditor.RotateTool", "icon": "ToolRotate", "key": "E", "tooltip": "Rotate Tool" },
+    { "tool": "Scale", "class": "HelixEditor.ScaleTool", "icon": "ToolScale", "key": "R", "tooltip": "Scale Tool" },
+    { "tool": "Rect", "class": "HelixEditor.RectTool", "icon": "ToolRect", "key": "T", "tooltip": "Rect Tool" },
+    { "tool": "Transform", "class": "HelixEditor.TransformTool", "icon": "ToolTransform", "key": "Y", "tooltip": "Transform Tool" }
+  ]
+}

@@ -1,7 +1,7 @@
 <HXML>
   <!-- The Project window: its toolbar (Create, the search, lock, menu), the folder tree and the folder's assets. -->
   <Element class="window-toolbar">
-    <Button class="window-dropdown plain"><Label text="Create"/><Element class="icon arrow-down"/></Button>
+    <Button class="window-dropdown plain"><Element class="icon icon-plus"/><Element class="icon arrow-down"/></Button>
     <Element class="window-fill"/>
     <Element class="window-search"><Element class="icon icon-search"/><Label class="window-search-text" text=""/></Element>
     <Button class="window-tool"><Element class="icon icon-lock"/></Button>

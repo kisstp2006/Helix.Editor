@@ -13,6 +13,7 @@ ce86d6849cb0a3092796cafedc58bacb Settings/AddComponentMenu.json
 90bfd54a21a98f416819ad914fe0e718 Settings/Importers.json
 534d3976ae5a97e30fb92d98a8095d33 Settings/Pipelines.json
 c27d8c85904c8c2aed874e0680a78177 Settings/SerializedFields.json
+1934a8cbd43acfbbd02c19cb25d81451 Settings/Tools.json
 c7d44b4fd62b0df81db8dd282b363171 Skin/HelixClassic.hss
 08e71984366f43ddfa33565041636dfa Skin/HelixClassic/Button.png
 21fc8a8710c3caadc1e85c1517ac069b Skin/HelixClassic/ButtonHover.png
@@ -54,6 +55,8 @@ e4b820b5052691eadf2f4460ed595bbf Skin/Icons/ComponentMeshRenderer.png
 58b2abf703d2c50ddbae6cc5a9ea3e64 Skin/Icons/Error.png
 5931cbf17bb4a4c3158a4aeea1f976d4 Skin/Icons/GameObject.png
 e36789220ebd88cbdc001b07fca246a5 Skin/Icons/Grid.png
+9d60b5a2341f9dc2ebb9d6e7fe9a41be Skin/Icons/GripHorizontal.png
+69863f8b6951890a2686951ef65ebd70 Skin/Icons/GripVertical.png
 215d0e9f7d8c61b4f322c0fb90df7c75 Skin/Icons/Help.png
 a10a8c089328c19987c7cc3b24e1f33a Skin/Icons/Info.png
 bc02833f8bbc31be5a3b7caac9b93427 Skin/Icons/Layers.png
@@ -64,14 +67,20 @@ f09e62427b525eec8942da68c4cf4e6a Skin/Icons/Menu.png
 a346d55a804667b2d82935595887fa4c Skin/Icons/Minimize.png
 46b8c5b95646cb1421b035ad7ab8ac4a Skin/Icons/Pause.png
 9669d1747577a297dc08233020ed512d Skin/Icons/Play.png
+5632aebbefaa0e2da83203c35e700734 Skin/Icons/Plus.png
 78a57209754b283c273cde2ea677d773 Skin/Icons/Restore.png
 413e814e6247ba43376c384b502b153a Skin/Icons/Scene.png
 51f899cadf10a180e986d87ca133d4f0 Skin/Icons/Search.png
 f2021380a60f9598205e73482c44210a Skin/Icons/Step.png
+09fa681bbb33392d1674b27856fde2ec Skin/Icons/ToolCenter.png
+53ee7a375691eb731d23242b0ef6998f Skin/Icons/ToolGlobal.png
+2bc1e4ea595c06e063b37499e6019e2d Skin/Icons/ToolLocal.png
 41a223a48ba010fc445371e7cbada49a Skin/Icons/ToolMove.png
+ef7c6902699e13225a641820f58442a4 Skin/Icons/ToolPivot.png
 e55f18f55c6d9315e12c90c9ce78867a Skin/Icons/ToolRect.png
 97d10422345c3b350be4572d771fe916 Skin/Icons/ToolRotate.png
 b2523ad6d539560b1e13cc7881734909 Skin/Icons/ToolScale.png
+788c44000d6f66ff44147e1e774dc90f Skin/Icons/ToolTransform.png
 9b976b737970d537364684dab1548876 Skin/Icons/ToolView.png
 3b977ac51f586c439afcb1287a22b0a1 Skin/Icons/Warning.png
 860f8dde4d94eb8d3ff4da6884aa85b1 Skin/Icons/WindowConsoleWindow.png

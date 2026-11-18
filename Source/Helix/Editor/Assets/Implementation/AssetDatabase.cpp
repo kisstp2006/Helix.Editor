@@ -316,6 +316,7 @@ namespace helix::editor
         Guid guid = ProjectDatabase::MetaFor(path);
         engine::RegisterAssetObject(guid, engine::MainAssetFileId(asset->Class().classId), asset, true);
         EditorUtility::ClearDirty(asset);
+        ProjectDatabase::CreatedInMemory(path);
         ProjectDatabase::Refresh();
     }
 

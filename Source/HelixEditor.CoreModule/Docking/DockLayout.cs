@@ -14,6 +14,7 @@ namespace HelixEditor.Docking
     //     ...
     //   float 120 80 420 320        a floating container (x y width height) with its tree under it
     //     area 0 Console
+    //   state overlays:SceneView ...  a window's own state by a key (the rest of the line)
     // Children are indented by two spaces under their split or container.
     public abstract class DockNode
     {
@@ -65,6 +66,8 @@ namespace HelixEditor.Docking
         public DockNode root;
         public readonly List<FloatingContainer> floating = new();
         public DockArea maximized;
+        // The windows' own state by a key (an overlay canvas': "overlays:<window>"), one line each.
+        public readonly SortedDictionary<string, string> states = new(StringComparer.Ordinal);
 
         // ------------------------------------------------------------------------------------------ queries
 
@@ -251,6 +254,9 @@ namespace HelixEditor.Docking
                 sb.Append(string.Format(CultureInfo.InvariantCulture, "float {0} {1} {2} {3}\n", f.rect.x, f.rect.y, f.rect.width, f.rect.height));
                 WriteNode(sb, f.root, 1);
             }
+            foreach (var kv in states)
+                if (!string.IsNullOrEmpty(kv.Value))
+                    sb.Append("state ").Append(kv.Key).Append(' ').Append(kv.Value.Replace('\n', ' ')).Append('\n');
             return sb.ToString();
         }
 
@@ -289,6 +295,14 @@ namespace HelixEditor.Docking
                     depth++;
                 depth /= 2;
                 string[] parts = raw.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts[0] == "state" && parts.Length >= 2)
+                {
+                    // "state <key> <value to the line's end>".
+                    string rest = raw.Trim().Substring(6);
+                    int space = rest.IndexOf(' ');
+                    layout.states[space < 0 ? rest : rest.Substring(0, space)] = space < 0 ? "" : rest.Substring(space + 1);
+                    continue;
+                }
                 if (parts[0] == "float" && parts.Length >= 5)
                 {
                     current = new FloatingContainer

@@ -64,6 +64,7 @@ namespace HelixEditor
     {
         static HashSet<string> s_Hidden;
         static Dictionary<string, (SerializedPropertyType type, string[] fields)> s_Types;
+        static Dictionary<string, string> s_Members;
 
         static void Load()
         {
@@ -71,6 +72,7 @@ namespace HelixEditor
                 return;
             s_Hidden = new HashSet<string>();
             s_Types = new Dictionary<string, (SerializedPropertyType, string[])>();
+            s_Members = new Dictionary<string, string>();
             try
             {
                 string file = System.IO.Path.Combine(EditorApplication.editorDataPathInternal, "Settings/SerializedFields.json");
@@ -85,11 +87,30 @@ namespace HelixEditor
                     if (parts.Count > 0 && Enum.TryParse(parts[0], out SerializedPropertyType kind))
                         s_Types[t.Name] = (kind, parts.GetRange(1, parts.Count - 1).ToArray());
                 }
+                if (doc.RootElement.TryGetProperty("members", out JsonElement members))
+                    foreach (JsonProperty m in members.EnumerateObject())
+                        s_Members[m.Name] = m.Value.GetString();
             }
             catch (Exception e)
             {
                 Debug.LogError($"Settings/SerializedFields.json could not be read: {e.Message}");
             }
+        }
+
+        /// <summary>The C# member of a native class that a serialized field is (its type tells an enum): the
+        /// "members" table by "Class.path", else the field's name without m_ in lower camel case at the top.</summary>
+        internal static MemberInfo MemberOf(Type type, string path, int depth)
+        {
+            Load();
+            string name = null;
+            for (Type t = type; t != null && name == null; t = t.BaseType)
+                s_Members.TryGetValue(t.Name + "." + path, out name);
+            if (name == null && depth == 0 && path.StartsWith("m_", StringComparison.Ordinal) && path.Length > 2)
+                name = char.ToLowerInvariant(path[2]) + path.Substring(3);
+            if (name == null)
+                return null;
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public;
+            return (MemberInfo)type.GetProperty(name, flags) ?? type.GetField(name, flags);
         }
 
         internal static bool Hidden(string name)
@@ -502,9 +523,19 @@ namespace HelixEditor
             return m_Object.targetObject.GetType().GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         }
 
+        internal Type EnumTypeInternal() => EnumType();
+
         Type EnumType()
         {
             Type t = FieldOf()?.FieldType;
+            // A native class's field: the type of its C# member (Light's m_Type is Light.type, a LightType).
+            if (t == null && m_Index >= 0 && m_Object.targetObject != null)
+                t = SerializedFields.MemberOf(m_Object.targetObject.GetType(), propertyPath, depth) switch
+                {
+                    PropertyInfo p => p.PropertyType,
+                    FieldInfo f => f.FieldType,
+                    _ => null,
+                };
             return t != null && t.IsEnum ? t : null;
         }
 
