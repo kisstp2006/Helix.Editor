@@ -5,5 +5,17 @@
     "standard": "HelixEngine.Rendering.Universal.UniversalRenderPipelineAsset",
     "physical": "HelixEngine.Rendering.Physical.PhysicalRenderPipelineAsset",
     "none": ""
+  },
+  "companions_comment": "Components a pipeline puts beside others the editor adds (and beside a new scene's), by class: of, the component; add, its companion; defaults, the companion's properties set when the component's properties are as in when.",
+  "companions": {
+    "physical": [
+      {
+        "of": "HelixEngine.Light",
+        "add": "HelixEngine.Rendering.Physical.PhysicalAdditionalLightData",
+        "defaults": [
+          { "when": { "type": "Directional" }, "values": { "lightUnit": "Lux", "intensity": 100000 } }
+        ]
+      }
+    ]
   }
 }

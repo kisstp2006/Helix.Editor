@@ -82,8 +82,11 @@ namespace HelixEditor
         static void DirectionalLight()
         {
             GameObject go = HierarchyCommands.Create("Directional Light", null, typeof(Light));
-            go.GetComponent<Light>().type = LightType.Directional;
+            Light light = go.GetComponent<Light>();
+            light.type = LightType.Directional;
             go.transform.rotation = Quaternion.Euler(50, -30, 0);
+            // Its companions' defaults for a directional light (it was made a point light).
+            PipelineCompanions.ReapplyInternal(light);
         }
 
         [MenuItem("GameObject/Camera", false, 13)] static void Camera() => HierarchyCommands.Create("Camera", null, typeof(Camera));

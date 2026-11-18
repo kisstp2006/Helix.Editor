@@ -577,7 +577,7 @@ namespace HelixEditor
             for (Transform p = parent; p != null; p = p.parent)
                 HierarchyWindow.revealNext.Add(p.gameObject.GetEntityId());
             foreach (Type c in components)
-                go.AddComponent(c);
+                ObjectFactory.AddComponent(go, c);
             EditorSceneManager.MarkSceneDirty(go.scene);
             Selection.activeObject = go;
             HierarchyWindow.renameNext = go;

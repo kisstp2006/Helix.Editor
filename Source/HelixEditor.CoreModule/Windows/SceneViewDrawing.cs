@@ -12,63 +12,122 @@ namespace HelixEditor
     /// meshes and drawn for that camera only.</summary>
     internal sealed class SceneBatch
     {
-        // [depth tested, always] x [lines, triangles]
-        readonly List<Vector3>[] m_Points = { new(), new(), new(), new() };
-        readonly List<Color>[] m_Colors = { new(), new(), new(), new() };
-        readonly Mesh[] m_Meshes = new Mesh[4];
+        // [depth tested, always] x [lines, triangles, thick lines]: the points, their colors; a thick line's quad also
+        // has each vertex's other end and its side with half the width (negative at the segment's end).
+        const int kKinds = 3;
+        readonly List<Vector3>[] m_Points = New<Vector3>();
+        readonly List<Color>[] m_Colors = New<Color>();
+        readonly List<Vector3>[] m_Others = New<Vector3>();
+        readonly List<Vector2>[] m_Sides = New<Vector2>();
+        readonly Mesh[] m_Meshes = new Mesh[2 * kKinds];
 
-        static int Slot(bool depthTested, bool triangles) => (depthTested ? 0 : 2) + (triangles ? 1 : 0);
+        static List<T>[] New<T>()
+        {
+            var lists = new List<T>[2 * kKinds];
+            for (int i = 0; i < lists.Length; i++)
+                lists[i] = new List<T>();
+            return lists;
+        }
 
-        public int lineCount => (m_Points[0].Count + m_Points[2].Count) / 2;
-        public int triangleCount => (m_Points[1].Count + m_Points[3].Count) / 3;
+        static int Slot(bool depthTested, int kind) => (depthTested ? 0 : kKinds) + kind;
+
+        public int lineCount => (m_Points[0].Count + m_Points[kKinds].Count) / 2;
+        public int triangleCount => (m_Points[1].Count + m_Points[kKinds + 1].Count) / 3;
+        public int thickLineCount => (m_Points[2].Count + m_Points[kKinds + 2].Count) / 6;
+
+        // For tests: how many colors the triangles have.
+        internal int distinctTriangleColorsInternal
+        {
+            get
+            {
+                var seen = new HashSet<Color>();
+                foreach (Color c in m_Colors[1])
+                    seen.Add(c);
+                foreach (Color c in m_Colors[kKinds + 1])
+                    seen.Add(c);
+                return seen.Count;
+            }
+        }
 
         public void Line(Vector3 a, Vector3 b, Color color, bool depthTested)
         {
-            int s = Slot(depthTested, false);
+            int s = Slot(depthTested, 0);
             m_Points[s].Add(a);
             m_Points[s].Add(b);
             m_Colors[s].Add(color);
             m_Colors[s].Add(color);
         }
 
-        public void Triangle(Vector3 a, Vector3 b, Vector3 c, Color color, bool depthTested)
+        public void Triangle(Vector3 a, Vector3 b, Vector3 c, Color color, bool depthTested) => Triangle(a, b, c, color, color, color, depthTested);
+
+        public void Triangle(Vector3 a, Vector3 b, Vector3 c, Color ca, Color cb, Color cc, bool depthTested)
         {
-            int s = Slot(depthTested, true);
+            int s = Slot(depthTested, 1);
             m_Points[s].Add(a);
             m_Points[s].Add(b);
             m_Points[s].Add(c);
-            for (int i = 0; i < 3; i++)
+            m_Colors[s].Add(ca);
+            m_Colors[s].Add(cb);
+            m_Colors[s].Add(cc);
+        }
+
+        /// <summary>A line of a width in pixels, its edges smoothed (two triangles widened on the screen).</summary>
+        public void ThickLine(Vector3 a, Vector3 b, Color color, float width, bool depthTested)
+        {
+            int s = Slot(depthTested, 2);
+            float half = Math.Max(0.25f, width * 0.5f);
+            // The quad's corners: at a (its side -1, +1), at b (+1, -1); b's halves negative.
+            Vector3[] at = { a, a, b, a, b, b };
+            Vector3[] other = { b, b, a, b, a, a };
+            Vector2[] side = { new(-1, half), new(1, half), new(1, -half), new(-1, half), new(1, -half), new(-1, -half) };
+            for (int i = 0; i < 6; i++)
+            {
+                m_Points[s].Add(at[i]);
+                m_Others[s].Add(other[i]);
+                m_Sides[s].Add(side[i]);
                 m_Colors[s].Add(color);
+            }
         }
 
         public void Clear()
         {
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 2 * kKinds; i++)
             {
                 m_Points[i].Clear();
                 m_Colors[i].Clear();
+                m_Others[i].Clear();
+                m_Sides[i].Clear();
             }
         }
 
-        public void Draw(Camera camera, Material depthTested, Material always)
+        /// <summary>Drawn for the camera: lines and triangles with SceneLines' materials, thick lines with
+        /// SceneThickLines' (depth tested, over everything).</summary>
+        public void Draw(Camera camera, Material depthTested, Material always, Material thickTested, Material thickAlways)
         {
-            for (int s = 0; s < 4; s++)
+            for (int s = 0; s < 2 * kKinds; s++)
             {
                 List<Vector3> points = m_Points[s];
-                if (points.Count == 0)
+                int kind = s % kKinds;
+                bool tested = s < kKinds;
+                Material material = kind == 2 ? (tested ? thickTested : thickAlways) : (tested ? depthTested : always);
+                if (points.Count == 0 || material == null)
                     continue;
                 Mesh m = m_Meshes[s] ??= new Mesh { name = "SceneBatch", hideFlags = HideFlags.HideAndDontSave };
                 m.Clear();
                 m.vertices = points.ToArray();
                 m.colors = m_Colors[s].ToArray();
+                if (kind == 2)
+                {
+                    m.normals = m_Others[s].ToArray();
+                    m.uv = m_Sides[s].ToArray();
+                }
                 var indices = new int[points.Count];
                 for (int i = 0; i < indices.Length; i++)
                     indices[i] = i;
-                bool triangles = (s & 1) != 0;
-                m.SetIndices(indices, triangles ? MeshTopology.Triangles : MeshTopology.Lines, 0);
+                m.SetIndices(indices, kind == 0 ? MeshTopology.Lines : MeshTopology.Triangles, 0);
                 // Bounds that never cull it: it is the camera's own.
                 m.bounds = new Bounds(camera.transform.position, Vector3.one * 1e7f);
-                Graphics.DrawMesh(m, Matrix4x4.identity, s < 2 ? depthTested : always, 0, camera);
+                Graphics.DrawMesh(m, Matrix4x4.identity, material, 0, camera);
             }
         }
 
@@ -89,7 +148,7 @@ namespace HelixEditor
         readonly List<GizmoRecorder.IconMark> m_Icons = new();
         // The object that drew each icon (a click on an icon selects it).
         readonly List<GameObject> m_IconOwners = new();
-        Material m_LinesTested, m_LinesAlways;
+        Material m_LinesTested, m_LinesAlways, m_ThickTested, m_ThickAlways;
         ImguiContainer m_SceneGui;
 
         internal SceneBatch gizmoBatchInternal => m_GizmoBatch;
@@ -112,16 +171,31 @@ namespace HelixEditor
 
         bool EnsureLineMaterials()
         {
-            if (m_LinesTested != null && m_LinesAlways != null)
-                return true;
-            Shader shader = Shader.Find("Hidden/Editor/SceneLines");
-            if (shader == null)
-                return false;
-            m_LinesTested = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
-            m_LinesTested.SetFloat("_ZTest", (float)HelixEngine.Rendering.CompareFunction.LessEqual);
-            m_LinesAlways = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
-            m_LinesAlways.SetFloat("_ZTest", (float)HelixEngine.Rendering.CompareFunction.Always);
+            if (m_LinesTested == null || m_LinesAlways == null)
+            {
+                Shader shader = Shader.Find("Hidden/Editor/SceneLines");
+                if (shader == null)
+                    return false;
+                m_LinesTested = Lines(shader, HelixEngine.Rendering.CompareFunction.LessEqual);
+                m_LinesAlways = Lines(shader, HelixEngine.Rendering.CompareFunction.Always);
+            }
+            if ((m_ThickTested == null || m_ThickAlways == null) && Shader.Find("Hidden/Editor/SceneThickLines") is Shader thick)
+            {
+                m_ThickTested = Lines(thick, HelixEngine.Rendering.CompareFunction.LessEqual);
+                m_ThickAlways = Lines(thick, HelixEngine.Rendering.CompareFunction.Always);
+            }
+            // The thick lines widen by the view's pixels.
+            Vector4 size = new Vector4(Math.Max(1, m_Target != null ? m_Target.width : 1), Math.Max(1, m_Target != null ? m_Target.height : 1), 0, 0);
+            m_ThickTested?.SetVector("_ViewportSize", size);
+            m_ThickAlways?.SetVector("_ViewportSize", size);
             return true;
+        }
+
+        static Material Lines(Shader shader, HelixEngine.Rendering.CompareFunction test)
+        {
+            var m = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+            m.SetFloat("_ZTest", (float)test);
+            return m;
         }
 
         // Each frame, before the camera renders: the gizmos gathered, both batches drawn.
@@ -134,8 +208,8 @@ namespace HelixEditor
                 CollectGizmos();
             if (!EnsureLineMaterials())
                 return;
-            m_GizmoBatch.Draw(m_Camera, m_LinesTested, m_LinesAlways);
-            m_HandleBatch.Draw(m_Camera, m_LinesTested, m_LinesAlways);
+            m_GizmoBatch.Draw(m_Camera, m_LinesTested, m_LinesAlways, m_ThickTested, m_ThickAlways);
+            m_HandleBatch.Draw(m_Camera, m_LinesTested, m_LinesAlways, m_ThickTested, m_ThickAlways);
         }
 
         void ReleaseDrawing()
@@ -146,6 +220,10 @@ namespace HelixEditor
                 DestroyImmediate(m_LinesTested);
             if (m_LinesAlways != null)
                 DestroyImmediate(m_LinesAlways);
+            if (m_ThickTested != null)
+                DestroyImmediate(m_ThickTested);
+            if (m_ThickAlways != null)
+                DestroyImmediate(m_ThickAlways);
         }
 
         // ------------------------------------------------------------------------------------------- gizmos

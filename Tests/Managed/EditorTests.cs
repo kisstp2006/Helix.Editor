@@ -482,6 +482,14 @@ namespace HelixEditor.Tests
             s_Steps.Enqueue(("the scene view's overlays", Overlays));
             s_Steps.Enqueue(("a frame", () => { }));
             s_Steps.Enqueue(("the overlays' elements, moves and state", OverlaysUsed));
+            s_Steps.Enqueue(("thick lines and lit caps", ThickLinesBegin));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("thick lines drawn", ThickLinesDrawn));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("lit caps drawn", LitCapsDrawn));
+            s_Steps.Enqueue(("the pipelines' companions", PipelineCompanionsAdded));
             s_Steps.Enqueue(("the Game view open", GameViewOpen));
             s_Steps.Enqueue(("a frame", () => { }));
             s_Steps.Enqueue(("a frame", () => { }));
@@ -2061,6 +2069,89 @@ namespace HelixEditor.Tests
             HelixEngine.Object.DestroyImmediate(s_SecondCamera);
         }
 
+        static bool s_LitCaps;
+        static int s_UnlitTriangles;
+
+        static void DrawThickAndLit(SceneView view)
+        {
+            Handles.color = Color.white;
+            Handles.DrawLine(new Vector3(-1, 0, 0), new Vector3(1, 0, 0), 4);
+            Handles.DrawLine(new Vector3(-1, 1, 0), new Vector3(1, 1, 0));
+            Handles.DrawAAPolyLine(2, new Vector3(-1, 2, 0), new Vector3(0, 2.5f, 0), new Vector3(1, 2, 0));
+            Handles.DrawWireDisc(Vector3.zero, Vector3.up, 1, 3);
+            Handles.lighting = s_LitCaps;
+            Handles.SphereHandleCap(0, new Vector3(0, 0, 2), Quaternion.identity, 1, EventType.Repaint);
+            Handles.lighting = true;
+        }
+
+        static void ThickLinesBegin()
+        {
+            SceneView v = EditorWindow.GetWindow<SceneView>();
+            v.LookAt(Vector3.zero, Quaternion.Euler(30, 20, 0), 5, false, true);
+            s_LitCaps = false;
+            SceneView.duringSceneGui += DrawThickAndLit;
+            v.Repaint();
+        }
+
+        static void ThickLinesDrawn()
+        {
+            SceneView v = EditorWindow.GetWindow<SceneView>();
+            SceneBatch b = v.handleBatchInternal;
+            // A 4 pixel line, two segments of a polyline, a disc of 48 segments; the one pixel line stays a line.
+            Equal(1 + 2 + 48, b.thickLineCount, "thick lines as quads");
+            Check(b.lineCount >= 1, "a one pixel line a line");
+            s_UnlitTriangles = b.triangleCount;
+            Check(s_UnlitTriangles >= 256, $"the unlit sphere's every triangle ({s_UnlitTriangles})");
+            s_LitCaps = true;
+            v.Repaint();
+        }
+
+        static void LitCapsDrawn()
+        {
+            SceneView v = EditorWindow.GetWindow<SceneView>();
+            SceneBatch b = v.handleBatchInternal;
+            int lit = b.triangleCount;
+            Check(lit > 0 && lit < s_UnlitTriangles * 3 / 4, $"lit: the far side left out ({lit} of {s_UnlitTriangles})");
+            Check(b.distinctTriangleColorsInternal > 4, $"shaded: its triangles in several tones ({b.distinctTriangleColorsInternal})");
+            SceneView.duringSceneGui -= DrawThickAndLit;
+            v.LookAt(Vector3.zero, Quaternion.Euler(30, -35, 0), 6, false, true);
+        }
+
+        static void PipelineCompanionsAdded()
+        {
+            Type dataType = Type.GetType("HelixEngine.Rendering.Physical.PhysicalAdditionalLightData, Helix.RenderPipelines.Physical.Runtime");
+            Check(dataType != null, "the physical pipeline's light data class loaded with the editor");
+            if (dataType == null)
+                return;
+            object Unit(Component c) => dataType.GetProperty("lightUnit").GetValue(c);
+            float Intensity(Component c) => (float)dataType.GetProperty("intensity").GetValue(c);
+            HelixEditor.PipelineCompanions.pipelineOverrideInternal = "physical";
+            int told = 0;
+            Action<Component> count = c => told++;
+            ObjectFactory.componentWasAdded += count;
+            GameObject go = ObjectFactory.CreateGameObject("Companion Light", typeof(Light));
+            Component data = go.GetComponent(dataType);
+            Check(data != null, "the physical pipeline's light data beside a light the editor adds");
+            Equal(1, told, "componentWasAdded told");
+            if (data != null)
+            {
+                Equal("Lumen", Unit(data).ToString(), "a point light's defaults (lumen)");
+                go.GetComponent<Light>().type = LightType.Directional;
+                HelixEditor.PipelineCompanions.ReapplyInternal(go.GetComponent<Light>());
+                Check(Unit(data).ToString() == "Lux" && Math.Abs(Intensity(data) - 100000f) < 1f,
+                      $"a directional light's: the sun in lux ({Unit(data)} {Intensity(data)})");
+            }
+            ObjectFactory.AddComponent(go, typeof(Light));
+            Equal(1, go.GetComponents(dataType).Length, "one companion");
+            ObjectFactory.componentWasAdded -= count;
+            HelixEngine.Object.DestroyImmediate(go);
+            HelixEditor.PipelineCompanions.pipelineOverrideInternal = "standard";
+            GameObject plain = ObjectFactory.CreateGameObject("Standard Light", typeof(Light));
+            Check(plain.GetComponent(dataType) == null, "none for the standard pipeline");
+            HelixEngine.Object.DestroyImmediate(plain);
+            HelixEditor.PipelineCompanions.pipelineOverrideInternal = null;
+        }
+
         static void Guids()
         {
             GUID g = AssetDatabase.GUIDFromAssetPath("Assets/Textures/Checker.png");
@@ -2610,6 +2701,15 @@ namespace HelixEditor.Tests
                 r = Handles.RotationHandle(r, new Vector3(0, 0.5f, -2));
                 Handles.color = Color.white;
                 Handles.Label(p + Vector3.up * 0.3f, "PositionHandle");
+                // Thick and smoothed lines, a scaled cube and a sphere cap lit from the camera.
+                Handles.color = new Color(1f, 0.6f, 0.1f, 1f);
+                Handles.DrawLine(new Vector3(-3, 0.05f, -2), new Vector3(3, 0.05f, -2), 6);
+                Handles.DrawWireDisc(new Vector3(-2.5f, 0.05f, 1.5f), Vector3.up, 0.8f, 4);
+                Handles.color = new Color(0.4f, 0.8f, 1f, 1f);
+                Handles.DrawAAPolyLine(3, new Vector3(-3, 0.05f, 3), new Vector3(-1, 0.05f, 2.2f), new Vector3(1, 0.05f, 3), new Vector3(3, 0.05f, 2.2f));
+                Handles.ScaleHandle(Vector3.one, new Vector3(2.5f, 0.3f, -0.5f), Quaternion.identity, 1);
+                Handles.color = new Color(0.9f, 0.3f, 0.3f, 1f);
+                Handles.SphereHandleCap(0, new Vector3(-0.5f, 1.8f, -1.5f), Quaternion.identity, 0.8f, EventType.Repaint);
             };
             EditorWindow.GetWindow<SceneView>().LookAt(new Vector3(0, 0.5f, 0), Quaternion.Euler(30, -35, 0), 6, false, true);
         }

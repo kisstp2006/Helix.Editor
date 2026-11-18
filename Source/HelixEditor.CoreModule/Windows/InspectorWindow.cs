@@ -693,6 +693,7 @@ namespace HelixEditor
             foreach (GameObject go in gameObjects)
                 if (go != null && InspectorNative.AddComponent(go, className) is Component c)
                 {
+                    ObjectFactory.ComponentWasAddedInternal(c);
                     made.Add(c);
                     EditorSceneManager.MarkSceneDirty(go.scene);
                 }

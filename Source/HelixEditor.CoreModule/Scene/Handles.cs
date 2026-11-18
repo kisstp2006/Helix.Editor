@@ -74,7 +74,52 @@ namespace HelixEditor
         static Vector3 W(Vector3 p) => matrix.MultiplyPoint(p);
 
         static void Seg(Vector3 a, Vector3 b) => Batch.Line(W(a), W(b), color, Tested);
+        // A segment of a width in pixels (0: one pixel, not smoothed).
+        static void Seg(Vector3 a, Vector3 b, float thickness)
+        {
+            if (thickness > 0)
+                Batch.ThickLine(W(a), W(b), color, thickness, Tested);
+            else
+                Seg(a, b);
+        }
+
         static void Tri(Vector3 a, Vector3 b, Vector3 c) => Batch.Triangle(W(a), W(b), W(c), color, Tested);
+
+        // A triangle of a solid cap: shaded by its normals (of Handles.matrix's space) toward the camera while
+        // Handles.lighting is on, flat in Handles.color else.
+        static void Lit(Vector3 a, Vector3 b, Vector3 c, Vector3 na, Vector3 nb, Vector3 nc)
+        {
+            if (!lighting)
+            {
+                Tri(a, b, c);
+                return;
+            }
+            Vector3 wa = W(a), wb = W(b), wc = W(c);
+            // The side away from the camera is not drawn (the caps draw over everything: it would cover the front).
+            if (Vector3.Dot(matrix.MultiplyVector(na + nb + nc), ToCamera((wa + wb + wc) / 3)) < 0)
+                return;
+            Batch.Triangle(wa, wb, wc, Shaded(wa, na), Shaded(wb, nb), Shaded(wc, nc), Tested);
+        }
+
+        static Vector3 ToCamera(Vector3 world)
+        {
+            Camera cam = HandleUtility.cameraInternal;
+            if (cam == null)
+                return Vector3.zero;
+            return cam.orthographic ? -cam.transform.forward : (cam.transform.position - world).normalized;
+        }
+
+        // The color lit from the camera: a little of it in shade, all of it facing the camera.
+        static Color Shaded(Vector3 world, Vector3 normal)
+        {
+            Camera cam = HandleUtility.cameraInternal;
+            if (cam == null)
+                return color;
+            Vector3 n = matrix.MultiplyVector(normal).normalized;
+            float k = 0.45f + 0.55f * Math.Max(0, Vector3.Dot(n, ToCamera(world)));
+            Color c = color;
+            return new Color(c.r * k, c.g * k, c.b * k, c.a);
+        }
 
         public static void DrawLine(Vector3 p1, Vector3 p2)
         {
@@ -82,7 +127,12 @@ namespace HelixEditor
                 Seg(p1, p2);
         }
 
-        public static void DrawLine(Vector3 p1, Vector3 p2, float thickness) => DrawLine(p1, p2);
+        /// <summary>A line of a width in pixels, its edges smoothed (0: one pixel).</summary>
+        public static void DrawLine(Vector3 p1, Vector3 p2, float thickness)
+        {
+            if (Painting)
+                Seg(p1, p2, thickness);
+        }
 
         public static void DrawLines(Vector3[] lineSegments)
         {
@@ -108,8 +158,17 @@ namespace HelixEditor
                 Seg(points[i], points[i + 1]);
         }
 
-        public static void DrawAAPolyLine(params Vector3[] points) => DrawPolyLine(points);
-        public static void DrawAAPolyLine(float width, params Vector3[] points) => DrawPolyLine(points);
+        /// <summary>A polyline one pixel wide, smoothed.</summary>
+        public static void DrawAAPolyLine(params Vector3[] points) => DrawAAPolyLine(1, points);
+
+        /// <summary>A polyline of a width in pixels, smoothed.</summary>
+        public static void DrawAAPolyLine(float width, params Vector3[] points)
+        {
+            if (!Painting || points == null)
+                return;
+            for (int i = 0; i + 1 < points.Length; i++)
+                Seg(points[i], points[i + 1], Math.Max(width, 0.5f));
+        }
 
         /// <summary>A line of dashes about screenSpaceSize pixels long.</summary>
         public static void DrawDottedLine(Vector3 p1, Vector3 p2, float screenSpaceSize)
@@ -136,10 +195,17 @@ namespace HelixEditor
             DrawWireArc(center, normal, a, 360, radius);
         }
 
-        public static void DrawWireDisc(Vector3 center, Vector3 normal, float radius, float thickness) => DrawWireDisc(center, normal, radius);
+        public static void DrawWireDisc(Vector3 center, Vector3 normal, float radius, float thickness)
+        {
+            Basis(normal, out Vector3 a, out _);
+            DrawWireArc(center, normal, a, 360, radius, thickness);
+        }
 
         /// <summary>An arc of the normal's plane from a direction over an angle (degrees, turning about the normal).</summary>
-        public static void DrawWireArc(Vector3 center, Vector3 normal, Vector3 from, float angle, float radius)
+        public static void DrawWireArc(Vector3 center, Vector3 normal, Vector3 from, float angle, float radius) => DrawWireArc(center, normal, from, angle, radius, 0);
+
+        /// <summary>An arc of a width in pixels (0: one pixel).</summary>
+        public static void DrawWireArc(Vector3 center, Vector3 normal, Vector3 from, float angle, float radius, float thickness)
         {
             if (!Painting)
                 return;
@@ -148,13 +214,11 @@ namespace HelixEditor
             for (int i = 1; i <= n; i++)
             {
                 Vector3 p = center + Quaternion.AngleAxis(angle * i / n, normal) * from.normalized * radius;
-                Seg(prev, p);
+                Seg(prev, p, thickness);
                 prev = p;
             }
         }
 
-        public static void DrawWireArc(Vector3 center, Vector3 normal, Vector3 from, float angle, float radius, float thickness) =>
-            DrawWireArc(center, normal, from, angle, radius);
 
         public static void DrawSolidDisc(Vector3 center, Vector3 normal, float radius)
         {
@@ -253,15 +317,18 @@ namespace HelixEditor
         static void Cone(Vector3 basePoint, Vector3 dir, float length, float radius)
         {
             Basis(dir, out Vector3 a, out Vector3 b);
-            Vector3 apex = basePoint + dir.normalized * length;
+            Vector3 axis = dir.normalized, apex = basePoint + axis * length;
             const int n = 16;
             for (int i = 0; i < n; i++)
             {
-                double t0 = i * 2 * Math.PI / n, t1 = (i + 1) * 2 * Math.PI / n;
-                Vector3 p0 = basePoint + (a * (float)Math.Cos(t0) + b * (float)Math.Sin(t0)) * radius;
-                Vector3 p1 = basePoint + (a * (float)Math.Cos(t1) + b * (float)Math.Sin(t1)) * radius;
-                Tri(apex, p0, p1);
-                Tri(basePoint, p1, p0);
+                double t0 = i * 2 * Math.PI / n, t1 = (i + 1) * 2 * Math.PI / n, tm = (i + 0.5) * 2 * Math.PI / n;
+                Vector3 e0 = a * (float)Math.Cos(t0) + b * (float)Math.Sin(t0), e1 = a * (float)Math.Cos(t1) + b * (float)Math.Sin(t1);
+                Vector3 em = a * (float)Math.Cos(tm) + b * (float)Math.Sin(tm);
+                Vector3 p0 = basePoint + e0 * radius, p1 = basePoint + e1 * radius;
+                // The side's normals lean toward the apex by the cone's slope.
+                Vector3 N(Vector3 e) => (e * length + axis * radius).normalized;
+                Lit(apex, p0, p1, N(em), N(e0), N(e1));
+                Lit(basePoint, p1, p0, -axis, -axis, -axis);
             }
         }
 
@@ -302,8 +369,10 @@ namespace HelixEditor
             int[] faces = { 0, 2, 3, 1, 4, 5, 7, 6, 0, 1, 5, 4, 2, 6, 7, 3, 0, 4, 6, 2, 1, 3, 7, 5 };
             for (int f = 0; f < 24; f += 4)
             {
-                Tri(C(faces[f]), C(faces[f + 1]), C(faces[f + 2]));
-                Tri(C(faces[f]), C(faces[f + 2]), C(faces[f + 3]));
+                // The face's normal: from the cube's middle to the face's.
+                Vector3 nf = ((C(faces[f]) + C(faces[f + 2])) * 0.5f - position).normalized;
+                Lit(C(faces[f]), C(faces[f + 1]), C(faces[f + 2]), nf, nf, nf);
+                Lit(C(faces[f]), C(faces[f + 2]), C(faces[f + 3]), nf, nf, nf);
             }
         }
 
@@ -326,8 +395,9 @@ namespace HelixEditor
             for (int i = 0; i < rings; i++)
                 for (int j = 0; j < sectors; j++)
                 {
-                    Tri(S(i, j), S(i + 1, j), S(i + 1, j + 1));
-                    Tri(S(i, j), S(i + 1, j + 1), S(i, j + 1));
+                    Vector3 a = S(i, j), b = S(i + 1, j), c = S(i + 1, j + 1), d = S(i, j + 1);
+                    Lit(a, b, c, (a - position).normalized, (b - position).normalized, (c - position).normalized);
+                    Lit(a, c, d, (a - position).normalized, (c - position).normalized, (d - position).normalized);
                 }
         }
 
@@ -348,10 +418,11 @@ namespace HelixEditor
             {
                 double t0 = i * 2 * Math.PI / n, t1 = (i + 1) * 2 * Math.PI / n;
                 Vector3 e0 = (a * (float)Math.Cos(t0) + b * (float)Math.Sin(t0)) * r, e1 = (a * (float)Math.Cos(t1) + b * (float)Math.Sin(t1)) * r;
-                Tri(position - h + e0, position + h + e0, position + h + e1);
-                Tri(position - h + e0, position + h + e1, position - h + e1);
-                Tri(position + h, position + h + e0, position + h + e1);
-                Tri(position - h, position - h + e1, position - h + e0);
+                Vector3 n0 = e0.normalized, n1 = e1.normalized, up = dir.normalized;
+                Lit(position - h + e0, position + h + e0, position + h + e1, n0, n0, n1);
+                Lit(position - h + e0, position + h + e1, position - h + e1, n0, n1, n1);
+                Lit(position + h, position + h + e0, position + h + e1, up, up, up);
+                Lit(position - h, position - h + e1, position - h + e0, -up, -up, -up);
             }
         }
 
