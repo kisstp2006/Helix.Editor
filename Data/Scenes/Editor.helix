@@ -19,6 +19,7 @@ Camera:
   m_Enabled: 1
   m_ClearFlags: 2
   m_BackGroundColor: {r: 0.137, g: 0.137, b: 0.137, a: 1}
+  m_Depth: 100
 --- !h!1 &110
 GameObject:
   m_Component:

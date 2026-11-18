@@ -148,3 +148,69 @@
 .project-folder { padding: 2px; color: var(--hx-text); }
 .project-grid { flex-grow: 1; padding: var(--hx-window-padding); }
 .project-breadcrumb { color: var(--hx-text-strong); margin-bottom: 6px; }
+
+/* The Hierarchy: its rows (a scene's header, its objects; the inactive ones dim), the field of a rename, the search. */
+.window-search-field { flex-grow: 1; margin: 0px; padding: 0px; border-width: 0px; background-color: rgba(0,0,0,0); }
+.window-search--focused { border-width: 1px; border-color: var(--hx-accent); border-radius: 3px; padding-left: 6px; }
+.window-search--focused .icon { -helix-background-image-tint-color: var(--hx-text); }
+.window-search-field .helix-text-input__caret { width: 1px; background-color: var(--hx-text-strong); }
+.window-search-field .helix-text-input__selection { background-color: var(--hx-selection); }
+.window-search-field > * { border-width: 0px; background-color: rgba(0,0,0,0); color: var(--hx-text); font-size: var(--hx-small-font-size); padding-top: 0px; padding-bottom: 0px; min-height: 0px; }
+.hierarchy-content { padding: 0px; }
+.hierarchy-tree { flex-grow: 1; }
+.hierarchy-row { flex-direction: row; align-items: center; flex-grow: 1; height: var(--hx-hierarchy-row-height); }
+.hierarchy-icon { width: var(--hx-window-icon-size); height: var(--hx-window-icon-size); margin-right: 4px; -helix-background-image-tint-color: var(--hx-text-dim); }
+.hierarchy-name { color: var(--hx-text); font-size: var(--hx-font-size); }
+.hierarchy-scene { background-color: var(--hx-panel-dark); }
+.hierarchy-scene .hierarchy-name { color: var(--hx-text-strong); -helix-font-style: bold; }
+.hierarchy-inactive .hierarchy-name { color: var(--hx-text-dim); }
+.hierarchy-inactive .hierarchy-icon { opacity: 0.5; }
+.hierarchy-rename { flex-grow: 1; margin: 0px; min-height: 0px; height: var(--hx-hierarchy-row-height); }
+.hierarchy-tree .helix-collection-view__item--selected { background-color: var(--hx-selection); }
+.hierarchy-tree .helix-collection-view__item--drag-hover { background-color: var(--hx-accent); }
+.hierarchy-tree .helix-tree-view__item-indent { width: var(--hx-hierarchy-indent); }
+
+
+/* The Inspector: the selection's header (a GameObject's active toggle, name, static, tag and layer; an asset's icon,
+   name and type), each component under its raised title bar (foldout, icon, enabled, name, menu), its fields' labels
+   of one width; the Add Component button and its list. */
+.inspector { padding: 0px; }
+.inspector-content { flex-direction: column; padding-bottom: 12px; }
+.inspector-note { color: var(--hx-text-dim); -helix-font-style: italic; margin: 6px; white-space: normal; }
+.inspector-header { flex-direction: column; padding: 4px; padding-left: 6px; border-bottom-width: 1px; border-bottom-color: var(--hx-separator); }
+.inspector-header-row { flex-direction: row; align-items: center; min-height: 20px; }
+.inspector-header-icon { width: 28px; height: 28px; margin-right: 4px; -helix-background-scale-mode: scale-to-fit; -helix-background-image-tint-color: var(--hx-text-dim); }
+.inspector-active { margin-right: 4px; }
+.inspector-name { flex-grow: 1; margin-right: 6px; }
+.inspector-static .helix-toggle__text { color: var(--hx-text); font-size: var(--hx-small-font-size); }
+.inspector-tag, .inspector-layer { flex-grow: 1; flex-basis: 0px; margin-left: 4px; }
+.inspector-object-name { flex-grow: 1; color: var(--hx-text-strong); -helix-font-style: bold; }
+.inspector-object-type { color: var(--hx-text-dim); font-size: var(--hx-small-font-size); margin-right: 4px; }
+.inspector-titlebar { flex-direction: row; align-items: center; height: var(--hx-inspector-titlebar-height); padding-left: 2px; padding-right: 4px; background-image: url("../Skin/HelixClassic/Header.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
+.inspector-foldout { width: 12px; height: 12px; margin-right: 2px; -helix-background-image-tint-color: var(--hx-text-dim); }
+.inspector-component-icon { width: 16px; height: 16px; margin-right: 4px; -helix-background-scale-mode: scale-to-fit; -helix-background-image-tint-color: var(--hx-text); }
+.inspector-component-enabled { margin-right: 2px; margin-left: 0px; }
+.inspector-component-name { color: var(--hx-text-strong); -helix-font-style: bold; }
+.inspector-component-menu { width: 14px; height: 14px; -helix-background-image-tint-color: var(--hx-text-dim); }
+.inspector-component-menu:hover { -helix-background-image-tint-color: var(--hx-text-strong); }
+.inspector-component-body, .inspector-object-body { padding: 4px; padding-left: 16px; padding-right: 6px; padding-bottom: 6px; }
+.inspector .helix-base-field { margin-top: 1px; margin-bottom: 1px; min-height: 18px; }
+/* Labels take a share of the width (at most the skin's), a vector's part labels their letter's. */
+.inspector .helix-base-field > .helix-base-field__label { width: 40%; min-width: 70px; max-width: var(--hx-inspector-label-width); color: var(--hx-text); font-size: var(--hx-font-size); }
+.inspector .helix-composite-field__field > .helix-base-field__label { width: auto; min-width: 12px; flex-shrink: 0; color: var(--hx-text-dim); }
+.inspector .inspector-static > .helix-base-field__label { width: auto; min-width: 0px; margin-right: 3px; }
+.inspector .inspector-tag > .helix-base-field__label, .inspector .inspector-layer > .helix-base-field__label { width: auto; min-width: 0px; margin-right: 4px; flex-shrink: 0; overflow: visible; }
+.inspector-add-row { flex-direction: row; justify-content: center; padding: 10px; border-top-width: 1px; border-top-color: var(--hx-separator); }
+.inspector-add-component { width: 230px; height: 22px; }
+.dock-area-button { width: 14px; height: 14px; align-self: center; margin-right: 4px; }
+
+.add-component-popup { flex-direction: column; padding: 4px; background-image: url("../Skin/HelixClassic/Menu.png"); -helix-slice-left: 10; -helix-slice-top: 10; -helix-slice-right: 10; -helix-slice-bottom: 10; }
+.add-component-title { -helix-text-align: middle-center; color: var(--hx-text-strong); -helix-font-style: bold; padding: 3px; }
+.add-component-popup .window-search { margin-bottom: 4px; min-width: 0px; flex-grow: 0; }
+.add-component-list { flex-grow: 1; flex-shrink: 1; }
+.add-component-group { color: var(--hx-text-dim); font-size: var(--hx-small-font-size); padding: 4px; padding-left: 6px; border-top-width: 1px; border-top-color: var(--hx-separator); }
+.add-component-row { flex-direction: row; align-items: center; height: 20px; padding-left: 6px; }
+.add-component-row--highlight { background-image: url("../Skin/HelixClassic/MenuItemHover.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
+.add-component-icon { width: 14px; height: 14px; margin-right: 6px; -helix-background-scale-mode: scale-to-fit; -helix-background-image-tint-color: var(--hx-text); }
+.add-component-name { color: var(--hx-text); }
+.add-component-row--highlight .add-component-name { color: var(--hx-accent-text); }

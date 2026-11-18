@@ -1,5 +1,7 @@
 #include <Helix/Editor/Application/EditorApplication.h>
 
+#include <Helix/Engine/Transform/Transform.h>
+
 #include <Helix/Editor/Shell/EditorMenus.h>
 #include <Helix/Engine/Screen/Display.h>
 #include <Helix/Platform/IO/FileSystem.h>
@@ -141,7 +143,23 @@ namespace helix::editor
         S().applicationPath = String(applicationPath);
     }
 
-    void EditorApplication::Tick() { update().Invoke(); }
+    engine::Event<>& EditorApplication::hierarchyChanged()
+    {
+        static engine::Event<>* e = new engine::Event<>();
+        return *e;
+    }
+
+    void EditorApplication::Tick()
+    {
+        static u64 seen = 0;
+        u64 version = engine::HierarchyVersion();
+        if (version != seen)
+        {
+            seen = version;
+            hierarchyChanged().Invoke();
+        }
+        update().Invoke();
+    }
 
     void EditorApplication::SetToolWindowHost(const ToolWindowHost& host) { S().tools = host; }
     bool EditorApplication::toolWindowsInternal() { return S().tools.open != nullptr; }

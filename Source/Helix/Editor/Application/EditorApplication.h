@@ -34,6 +34,9 @@ namespace helix::editor
         HX_FUNCTION() static bool ExecuteMenuItem(StringView menuItemPath);
         // Once a frame of the editor (C#'s update and delayCall hang on it).
         HX_EVENT() static engine::Event<>& update();
+        // Raised in the editor's update after the scenes' hierarchy changed (objects made, destroyed, moved, renamed,
+        // activated; scenes loaded and unloaded), once however many changes there were.
+        HX_EVENT(Delegate = "global::System.Action") static engine::Event<>& hierarchyChanged();
         HX_EVENT(Internal) static engine::Event<>& playModeChangedNative();
         HX_EVENT(Internal) static engine::Event<>& pauseChangedNative();
 

@@ -37,7 +37,9 @@ namespace HelixEditor.Docking
             int display = EditorApplication.OpenToolWindowInternal("Helix", r);
             if (display < 0)
                 return null;
-            var obj = new GameObject($"Floating Window {display}") { hideFlags = HideFlags.DontSave };
+            // The editor's own object: in no scene of the user's, in no hierarchy.
+            var obj = new GameObject($"Floating Window {display}") { hideFlags = HideFlags.HideAndDontSave };
+            HelixEngine.Object.DontDestroyOnLoad(obj);
             var settings = ScriptableObject.CreateInstance<UIPanelSettings>();
             settings.hideFlags = HideFlags.DontSave;
             settings.targetDisplay = display;

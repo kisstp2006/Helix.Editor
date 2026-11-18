@@ -45,7 +45,22 @@ namespace HelixEditor
                                                     System.Reflection.BindingFlags.NonPublic, null, Type.EmptyTypes, null);
                     if (onGui != null)
                     {
-                        var handler = (Action)Delegate.CreateDelegate(typeof(Action), this, onGui);
+                        var draw = (Action)Delegate.CreateDelegate(typeof(Action), this, onGui);
+                        // The editor's fields know the window they draw in and its width.
+                        Action handler = () =>
+                        {
+                            EditorWindow outer = s_Drawing;
+                            s_Drawing = this;
+                            EditorGuiUtility.currentViewWidth = m_Gui != null && m_Gui.layout.width > 0 ? m_Gui.layout.width : position.width;
+                            try
+                            {
+                                draw();
+                            }
+                            finally
+                            {
+                                s_Drawing = outer;
+                            }
+                        };
                         m_Gui = new ImguiContainer(handler) { name = "onGui" };
                         m_Gui.AddToClassList("editor-window-gui");
                         m_Root.Add(m_Gui);
@@ -54,6 +69,21 @@ namespace HelixEditor
                 return m_Root;
             }
         }
+
+        // The window's ShowButton(Rect): a button its dock area draws in the tab strip (null without one).
+        internal Action<Rect> showButtonInternal
+        {
+            get
+            {
+                var m = GetType().GetMethod("ShowButton", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public |
+                                            System.Reflection.BindingFlags.NonPublic, null, new[] { typeof(Rect) }, null);
+                return m == null ? null : (Action<Rect>)Delegate.CreateDelegate(typeof(Action<Rect>), this, m);
+            }
+        }
+
+        // The window whose OnGui runs now (the editor's menus and pickers open over it).
+        static EditorWindow s_Drawing;
+        internal static EditorWindow drawingInternal => s_Drawing ?? focusedWindow;
 
         public Rect position
         {

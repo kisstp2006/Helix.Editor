@@ -62,6 +62,8 @@ ${editor_modules_rows}    };
     file(GLOB_RECURSE editor_bound_headers CONFIGURE_DEPENDS "${editor_source}/Helix/Editor/*.h")
     list(FILTER editor_bound_headers EXCLUDE REGEX "/(Implementation|Host)/")
     set(editor_references "${editor_engine_source}/Helix/Engine/Object/EntityId.h" "${editor_engine_source}/Helix/Engine/Object/Object.h"
+        "${editor_engine_source}/Helix/Engine/Scene/Scene.h" "${editor_engine_source}/Helix/Engine/GameObject/GameObject.h"
+        "${editor_engine_source}/Helix/Engine/Transform/Transform.h"
         "${editor_math_dir}/Source/Helix/Math/Vector.h" "${editor_math_dir}/Source/Helix/Math/Geometry.h")
     helix_bindgen(helix_editor MODULE HelixEditor NAMESPACE HelixEditor KIND NativeGame HEADERS ${editor_bound_headers}
                   REFERENCES ${editor_references} REFERENCE_NAMESPACE HelixEngine
@@ -160,6 +162,11 @@ ${editor_modules_rows}    };
                  COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:helix_editor>" "-DPROJECT=${CMAKE_CURRENT_SOURCE_DIR}/Tests/Projects/Empty"
                          "-DWORK=${CMAKE_CURRENT_BINARY_DIR}/csharp-windowed" "-DMETHOD=HelixEditor.Tests.EditorTests.RunWindowed" "-DWINDOWED=1"
                          -P "${CMAKE_CURRENT_SOURCE_DIR}/Tests/RunEditorTests.cmake")
+        # The editor ends with a floating window open (its window and its view go with it).
+        add_test(NAME helix_editor_csharp_quit_floating
+                 COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:helix_editor>" "-DPROJECT=${CMAKE_CURRENT_SOURCE_DIR}/Tests/Projects/Empty"
+                         "-DWORK=${CMAKE_CURRENT_BINARY_DIR}/csharp-quit-floating" "-DMETHOD=HelixEditor.Tests.EditorTests.RunQuitWithFloating" "-DWINDOWED=1"
+                         -P "${CMAKE_CURRENT_SOURCE_DIR}/Tests/RunEditorTests.cmake")
         foreach(pipeline IN ITEMS standard physical)
             add_test(NAME helix_editor_shell_${pipeline}
                      COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:helix_editor>" "-DCOMPARE=$<TARGET_FILE:helix_editor_compare>"
@@ -170,7 +177,7 @@ ${editor_modules_rows}    };
         # The .NET runtime is never unloaded: LeakSanitizer is told about its modules.
         if(HELIX_ENABLE_ASAN AND HELIX_PLATFORM STREQUAL "linux")
             helix_dependency_dir(editor_scripting_dir Scripting)
-            set_tests_properties(helix_editor_csharp helix_editor_csharp_assets helix_editor_csharp_artifacts helix_editor_csharp_windowed helix_editor_shell_standard helix_editor_shell_physical PROPERTIES
+            set_tests_properties(helix_editor_csharp helix_editor_csharp_assets helix_editor_csharp_artifacts helix_editor_csharp_windowed helix_editor_csharp_quit_floating helix_editor_shell_standard helix_editor_shell_physical PROPERTIES
                                  ENVIRONMENT "LSAN_OPTIONS=suppressions=${editor_scripting_dir}/Tests/Support/LeakSuppressions.txt")
         endif()
     endif()

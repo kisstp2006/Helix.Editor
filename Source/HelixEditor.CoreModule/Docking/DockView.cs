@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using HelixEngine;
 using HelixEngine.UI;
@@ -218,6 +219,14 @@ namespace HelixEditor.Docking
             if (m_Container != null)
                 fill.AddToClassList("editor-caption");
             strip.Add(fill);
+            // The selected window's own button (its ShowButton: the Inspector's lock) before the menu.
+            EditorWindow shown = area.selectedTab != null ? DockManager.WindowOf(area.selectedTab) : null;
+            if (shown?.showButtonInternal is Action<Rect> show)
+            {
+                var button = new ImguiContainer(() => show(new Rect(0, 0, 14, 14))) { name = "dock-area-button" };
+                button.AddToClassList("dock-area-button");
+                strip.Add(button);
+            }
             // The area's menu (the selected tab's menu) at the strip's end.
             var areaMenu = new Element();
             areaMenu.AddToClassList("dock-area-menu");
@@ -531,6 +540,13 @@ namespace HelixEditor.Docking
             var menu = new GenericDropdownMenu();
             EditorWindow w = DockManager.WindowOf(tab);
             bool maximized = DockManager.layout.maximized == area;
+            if (w is IHasCustomMenu custom)
+            {
+                var own = new GenericMenu();
+                custom.AddItemsToMenu(own);
+                own.AppendToInternal(menu);
+                menu.AddSeparator("");
+            }
             menu.AddItem(maximized ? "Restore" : "Maximize", false, () =>
             {
                 if (w != null)

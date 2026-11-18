@@ -109,9 +109,23 @@ ICONS = {
     "ToolScale": [frame(6, 12, 20, 26, 2), arrow(13, 19, 26, 6, 2, 6)],
     "ToolRect": [frame(7, 9, 25, 23, 1.6), disc(7, 9, 2.4), disc(25, 9, 2.4), disc(7, 23, 2.4), disc(25, 23, 2.4)],
     "ArrowDown": [poly((10, 13), (22, 13), (16, 20))],
+    "ArrowRight": [poly((13, 10), (20, 16), (13, 22))],
     "Lock": [box(9, 15, 23, 26), arc(16, 14, 5, 2.4, 180, 360), line(11, 14, 11, 16, 2.4), line(21, 14, 21, 16, 2.4)],
     "Search": [ring(14, 14, 6, 2.2), line(18.5, 18.5, 25, 25, 2.6)],
     "Menu": [disc(16, 9, 2), disc(16, 16, 2), disc(16, 23, 2)],
+    # The Hierarchy's rows: a scene (a framed landscape) and a GameObject (a cube's edges).
+    "Scene": [frame(5, 7, 27, 25, 2), poly((8, 22), (14, 13), (18, 18), (21, 15), (25, 22)), disc(21, 11.5, 2)],
+    "GameObject": [line(16, 5, 26, 10.5, 1.8), line(26, 10.5, 16, 16, 1.8), line(16, 16, 6, 10.5, 1.8), line(6, 10.5, 16, 5, 1.8),
+                   line(6, 10.5, 6, 21.5, 1.8), line(26, 10.5, 26, 21.5, 1.8), line(16, 16, 16, 27, 1.8), line(6, 21.5, 16, 27, 1.8),
+                   line(26, 21.5, 16, 27, 1.8)],
+    # The Inspector's components: one icon per class (Component<Class>), a script's, and any other component's.
+    "Component": [frame(6, 6, 26, 26, 2), box(11, 11, 21, 21)],
+    "ComponentScript": [poly((8, 5), (20, 5), (25, 10), (25, 27), (8, 27)), ],
+    "ComponentTransform": [arrow(16, 16, 16, 5, 2, 5), arrow(16, 16, 27, 16, 2, 5), arrow(16, 16, 8, 24, 2, 5)],
+    "ComponentCamera": [box(5, 11, 20, 23), poly((20, 15), (27, 11), (27, 23), (20, 19)), disc(9, 8, 2.5), disc(15, 8, 2.5)],
+    "ComponentLight": [disc(16, 13, 6), box(13, 19, 19, 23), line(13, 25.5, 19, 25.5, 1.6)],
+    "ComponentMeshFilter": [poly((16, 5), (27, 11), (27, 21), (16, 27), (5, 21), (5, 11)), ],
+    "ComponentMeshRenderer": [ring(16, 16, 10, 2), disc(16, 16, 5)],
     "Help": [ring(16, 16, 10, 2), arc(16, 13, 3.5, 2, 180, 90), line(16, 16.5, 16, 18, 2), disc(16, 22, 1.4)],
     "Layers": [poly((16, 6), (27, 12), (16, 18), (5, 12)), line(5, 17, 16, 23, 2), line(16, 23, 27, 17, 2)],
     "Light": [disc(16, 16, 5)] + [line(16 + 8 * math.cos(a), 16 + 8 * math.sin(a), 16 + 12 * math.cos(a), 16 + 12 * math.sin(a), 2)

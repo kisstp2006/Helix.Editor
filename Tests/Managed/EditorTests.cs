@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using HelixEditor.Docking;
+using HelixEditor.SceneManagement;
+using HelixEngine.SceneManagement;
 using HelixEngine;
 using HelixEngine.UI;
 
@@ -170,6 +172,117 @@ namespace HelixEditor.Tests
         }
     }
 
+    public enum InspectedMode
+    {
+        First,
+        Second,
+        Third,
+    }
+
+    [Serializable]
+    public struct InspectedPair
+    {
+        public string key;
+        public int value;
+    }
+
+    // A script of every kind of field the serialized properties read and write.
+    public sealed class Inspected : GameBehaviour
+    {
+        public int count = 3;
+        public float speed = 1.5f;
+        public string title = "Hello";
+        public bool on = true;
+        public InspectedMode mode = InspectedMode.Second;
+        public Vector3 offset = new Vector3(1, 2, 3);
+        public Color tint = new Color(1, 0, 0, 1);
+        public int[] numbers = { 1, 2, 3 };
+        public Texture2D icon;
+        public GameObject target;
+        public InspectedPair pair = new InspectedPair { key = "a", value = 7 };
+        [HideInInspector] public int hidden = 9;
+        [Tooltip("How far")] public float range = 2;
+        [Header("Limits")] [Range(0, 10)] public float limited = 5;
+        [Space(30)] [Min(1)] public int atLeast = 3;
+        [Multiline(3)] public string notes = "a";
+        internal int validated;
+
+        void OnValidate() => validated++;
+    }
+
+    // A drawer of the pair struct: one line, its key only.
+    [CustomPropertyDrawer(typeof(InspectedPair))]
+    public sealed class InspectedPairDrawer : PropertyDrawer
+    {
+        internal static int s_Drawn;
+
+        public override void OnGui(Rect position, SerializedProperty property, GuiContent label)
+        {
+            s_Drawn++;
+            EditorGui.PropertyField(position, property.FindPropertyRelative("key"), label);
+        }
+
+        public override Element CreatePropertyGui(SerializedProperty property) => new Label("pair: " + property.FindPropertyRelative("key").stringValue) { name = "pair-label" };
+    }
+
+    [CustomEditor(typeof(Inspected))]
+    [CanEditMultipleObjects]
+    public sealed class InspectedEditor : Editor
+    {
+        internal static int s_Enabled, s_Drawn;
+        internal int targetsAtEnable;
+
+        void OnEnable()
+        {
+            s_Enabled++;
+            targetsAtEnable = targets.Length;
+        }
+
+        public override void OnInspectorGui()
+        {
+            s_Drawn++;
+            DrawDefaultInspector();
+        }
+    }
+
+    // A window whose OnGui draws an editor and fields (what it saw is kept for the tests).
+    public sealed class GuiProbeWindow : EditorWindow
+    {
+        internal static Editor s_Editor;
+        internal static int s_Passes;
+        internal static string s_Error;
+        internal static float s_ViewWidth;
+        internal static Color s_Color = new Color(1, 0, 0, 1);
+        internal static int s_Popup = 1;
+        internal static bool s_Open = true;
+
+        void OnGui()
+        {
+            try
+            {
+                s_Passes++;
+                s_ViewWidth = EditorGuiUtility.currentViewWidth;
+                if (s_Editor != null)
+                    s_Open = EditorGuiLayout.InspectorTitlebar(s_Open, s_Editor);
+                s_Editor?.OnInspectorGui();
+                s_Color = EditorGuiLayout.ColorField("Tint", s_Color);
+                s_Popup = EditorGuiLayout.Popup("Pick", s_Popup, new[] { "A", "B", "C" });
+                EditorGuiLayout.HelpBox("A note", MessageType.Info);
+                using (new EditorGui.IndentLevelScope())
+                    EditorGuiLayout.Vector3Field("Offset", Vector3.one);
+                EditorGuiLayout.ObjectField("Object", null, typeof(Texture2D), false);
+                EditorGuiLayout.LayerField("Layer", 0);
+                EditorGuiLayout.TagField("Tag", "Untagged");
+                EditorGuiLayout.EnumFlagsField("Flags", HideFlags.DontSave);
+                EditorGuiLayout.BoundsField("Bounds", new Bounds(Vector3.zero, Vector3.one));
+            }
+            catch (Exception e)
+            {
+                s_Error = e.ToString();
+            }
+        }
+    }
+
     public static class EditorTests
     {
         static int s_Failures, s_Checks;
@@ -193,6 +306,21 @@ namespace HelixEditor.Tests
 
         public static void Run()
         {
+            s_Steps.Enqueue(("the shell's view built anew", () =>
+            {
+                // As when its markup or style sheet changes on disk.
+                var view = GameObject.Find("Shell").GetComponent<UIView>();
+                view.source = view.source;
+            }));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the shell again in its new view", () =>
+            {
+                Element root = GameObject.Find("Shell").GetComponent<UIView>().rootElement;
+                Check(root.Find("menu-bar").childCount > 3, "the menu bar's titles");
+                Check(root.Find("toolbar-middle").childCount > 0, "the toolbar's elements");
+                Check(root.FindAll(null, "dock-area").Count > 0, "the dock's areas");
+                Check(root.Find<Label>("title").text.EndsWith("Helix Engine"), "the title");
+            }));
             s_Steps.Enqueue(("the layout's text round trip", TextRoundTrip));
             s_Steps.Enqueue(("docking among an area's tabs", DockCenter));
             s_Steps.Enqueue(("docking at an area's edges", DockEdges));
@@ -254,6 +382,42 @@ namespace HelixEditor.Tests
             s_Steps.Enqueue(("loading by path", LoadByPath));
             s_Steps.Enqueue(("a scripted importer", ScriptedImport));
             s_Steps.Enqueue(("an importer's settings", ImporterSettings));
+            s_Steps.Enqueue(("the editor's scenes", Scenes));
+            s_Steps.Enqueue(("the selection", SelectionOfObjects));
+            s_Steps.Enqueue(("the hierarchy's rows", HierarchyRows));
+            s_Steps.Enqueue(("the hierarchy's commands", HierarchyCommandsStep));
+            s_Steps.Enqueue(("the hierarchy told of changes", HierarchyChanged));
+            s_Steps.Enqueue(("the hierarchy's search", HierarchySearch));
+            s_Steps.Enqueue(("a Transform's serialized properties", SerializedTransform));
+            s_Steps.Enqueue(("a script's serialized properties", SerializedScript));
+            s_Steps.Enqueue(("several objects' serialized properties", SerializedSeveral));
+            s_Steps.Enqueue(("editors and drawers", EditorsAndDrawers));
+            s_Steps.Enqueue(("the editor's GUI in a window", GuiInWindow));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("what the window drew", GuiDrawn));
+            s_Steps.Enqueue(("a retained inspector", RetainedInspector));
+            s_Steps.Enqueue(("the Inspector of a GameObject", InspectorOfGameObject));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the Inspector left alone", InspectorIdle));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the Inspector not built again, its scroll kept", InspectorStillIdle));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the scroll after the layout", InspectorScrollKept));
+            s_Steps.Enqueue(("the Inspector's header and components", InspectorShown));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the Inspector's component menu", InspectorComponentMenu));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the Inspector after a move", InspectorMoved));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the Inspector of several objects", InspectorSeveral));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the Inspector locked, in Debug mode", InspectorLockAndDebug));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the Inspector of an asset", InspectorAsset));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the asset shown", InspectorAssetShown));
             s_Steps.Enqueue(("guids", Guids));
             s_Steps.Enqueue(("objects and their assets", ObjectsAndAssets));
             s_Steps.Enqueue(("native assets", NativeAssets));
@@ -352,6 +516,750 @@ namespace HelixEditor.Tests
                   "made editable");
             EditorUtility.ClearDirty(noSave);
             Check(AssetDatabase.DeleteAsset("Assets/Guard") && !AssetDatabase.IsValidFolder("Assets/Guard"), "the folder deleted with what it holds");
+        }
+
+        static string[] RootNames(Scene scene) => Array.ConvertAll(scene.GetRootGameObjects(), g => g.name);
+
+        static void Scenes()
+        {
+            // The project had none: a new scene with the default objects, the shell's objects apart.
+            Scene first = EditorSceneManager.GetActiveScene();
+            Equal("Untitled", first.name, "a new scene as the project opened");
+            Equal(new[] { "Main Camera", "Directional Light" }, RootNames(first), "its default objects");
+            Equal(1, SceneManager.sceneCount, "the shell's objects in no scene of the user");
+            Check(GameObject.Find("Main Camera").CompareTag("MainCamera"), "the camera's tag");
+            var log = new List<string>();
+            EditorSceneManager.SceneDirtiedCallback dirtied = s => log.Add("dirtied " + s.name);
+            EditorSceneManager.SceneSavedCallback saved = s => log.Add("saved " + s.name);
+            EditorSceneManager.SceneOpenedCallback opened = (s, m) => log.Add($"opened {s.name} {m}");
+            EditorSceneManager.NewSceneCreatedCallback created = (s, setup, m) => log.Add($"created {setup} {m}");
+            EditorSceneManager.sceneDirtied += dirtied;
+            EditorSceneManager.sceneSaved += saved;
+            EditorSceneManager.sceneOpened += opened;
+            EditorSceneManager.newSceneCreated += created;
+            try
+            {
+                Check(EditorSceneManager.MarkSceneDirty(first) && first.isDirty, "marked dirty");
+                EditorSceneManager.MarkSceneDirty(first);
+                Check(!EditorSceneManager.SaveScene(first), "an untitled scene not saved in batch mode (no dialog)");
+                Equal("", EditorUtility.OpenFilePanel("Open", "Assets", "helix"), "no dialogs in batch mode");
+                Check(EditorSceneManager.SaveScene(first, "Assets/Scenes/Main.helix"), "saved under a path");
+                Check(System.IO.File.Exists(System.IO.Path.Combine(EditorApplication.projectPathInternal, "Assets/Scenes/Main.helix")), "its file");
+                Check(AssetDatabase.AssetPathExists("Assets/Scenes/Main.helix"), "an asset of the project");
+                Equal("Assets/Scenes/Main.helix", first.path, "its path");
+                Equal("Main", first.name, "its name from the path");
+                Check(!first.isDirty, "clean after saving");
+                Check(!EditorSceneManager.SaveScene(first, "Notes.helix"), "no path outside the project");
+
+                Scene empty = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene);
+                Check(empty.IsValid() && empty == EditorSceneManager.GetActiveScene() && empty.rootCount == 0, "a new empty scene, active");
+                Equal(1, SceneManager.sceneCount, "alone");
+
+                Scene main = EditorSceneManager.OpenScene("Assets/Scenes/Main.helix");
+                Check(main.IsValid() && main.isLoaded && main == EditorSceneManager.GetActiveScene(), "opened again");
+                Equal(new[] { "Main Camera", "Directional Light" }, RootNames(main), "with its objects");
+                Equal(1, SceneManager.sceneCount, "opened alone");
+
+                Scene extra = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+                Equal(2, SceneManager.sceneCount, "an additive new scene beside it");
+                Check(main == EditorSceneManager.GetActiveScene(), "the active one kept");
+                Check(EditorSceneManager.CloseScene(extra, true), "closed");
+                Equal(1, SceneManager.sceneCount, "one left");
+                Check(!EditorSceneManager.CloseScene(main, true), "the last one stays");
+                Check(!EditorSceneManager.OpenScene("Assets/Text/Notes.txt").IsValid(), "no scene of a text file");
+
+                string setup = System.IO.File.ReadAllText(System.IO.Path.Combine(EditorApplication.projectPathInternal, "Library/LastSceneManagerSetup.txt"));
+                Equal("Assets/Scenes/Main.helix *\n", setup, "the open scenes kept for the next start");
+                Equal(new[] { "dirtied Untitled", "saved Main", "created EmptyScene Single", "opened Main Single", "created EmptyScene Additive" },
+                      log.ToArray(), "the events");
+            }
+            finally
+            {
+                EditorSceneManager.sceneDirtied -= dirtied;
+                EditorSceneManager.sceneSaved -= saved;
+                EditorSceneManager.sceneOpened -= opened;
+                EditorSceneManager.newSceneCreated -= created;
+            }
+        }
+
+        static void SelectionOfObjects()
+        {
+            GameObject camera = GameObject.Find("Main Camera");
+            GameObject light = GameObject.Find("Directional Light");
+            int changes = 0;
+            Action changed = () => changes++;
+            Selection.selectionChanged += changed;
+            try
+            {
+                Selection.activeObject = camera;
+                Check(Selection.activeGameObject == camera && Selection.activeTransform == camera.transform, "the active object");
+                Equal(camera.GetEntityId(), Selection.activeEntityId, "its id");
+                Check(Selection.count == 1 && Selection.Contains(camera) && !Selection.Contains(light), "one selected");
+                Selection.activeObject = camera;
+                Equal(1, changes, "told once (the same selection again tells nothing)");
+
+                Selection.objects = new HelixEngine.Object[] { light, camera };
+                Check(Selection.activeGameObject == camera && Selection.count == 2, "several, the active one kept");
+                Equal(2, Selection.gameObjects.Length, "as GameObjects");
+                Equal(2, Selection.entityIds.Length, "as ids");
+                Equal(2, changes, "told again");
+
+                light.transform.SetParent(camera.transform);
+                Equal(new[] { camera.transform }, Selection.transforms, "the top level only");
+                Equal(2, Selection.GetTransforms(SelectionMode.Unfiltered).Length, "or all");
+                Equal(1, Selection.GetFiltered<Camera>(SelectionMode.Unfiltered).Length, "a component type through the GameObjects");
+                Selection.activeObject = camera;
+                Equal(2, Selection.GetFiltered(typeof(GameObject), SelectionMode.Deep).Length, "the children too (Deep)");
+                Equal(0, Selection.assetGUIDs.Length, "no assets");
+
+                Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Checker.png");
+                Selection.objects = new HelixEngine.Object[] { camera, texture };
+                Equal(new[] { AssetDatabase.AssetPathToGUID("Assets/Textures/Checker.png") }, Selection.assetGUIDs, "the selected asset's guid");
+                Equal(new HelixEngine.Object[] { texture }, Selection.GetFiltered(typeof(HelixEngine.Object), SelectionMode.Assets), "the assets only");
+                Equal(1, Selection.GetTransforms(SelectionMode.Unfiltered).Length, "an asset has no Transform of a scene");
+
+                Selection.SetActiveObjectWithContext(light, camera);
+                Check(Selection.activeObject == light && Selection.activeContext == camera, "with a context");
+                Selection.objects = new HelixEngine.Object[] { camera, light };
+                HelixEngine.Object.DestroyImmediate(light);
+                Check(Selection.count == 1 && Selection.activeGameObject == camera, "a destroyed object drops out");
+                Selection.activeObject = null;
+                Check(Selection.count == 0 && Selection.activeObject == null, "nothing selected");
+            }
+            finally
+            {
+                Selection.selectionChanged -= changed;
+            }
+        }
+
+        // The rows' texts of the Hierarchy (as shown), after a rebuild.
+        static string[] HierarchyTexts(HierarchyWindow h)
+        {
+            h.RebuildInternal();
+            TreeView tree = h.treeInternal;
+            int count = tree.viewController.GetItemsCount();
+            var texts = new string[count];
+            for (int i = 0; i < count; i++)
+            {
+                var row = tree.GetRootElementForIndex(i);
+                texts[i] = row?.Find<Label>("name")?.text ?? "?";
+            }
+            return texts;
+        }
+
+        static int RowOf(HierarchyWindow h, string text) => Array.IndexOf(HierarchyTexts(h), text);
+
+        static void HierarchyRows()
+        {
+            var h = EditorWindow.GetWindow<HierarchyWindow>();
+            // After the scenes step: Main (the light destroyed by the selection step, not marked as a change).
+            Equal(new[] { "Main", "Main Camera" }, HierarchyTexts(h), "the scene and its objects");
+            GameObject camera = GameObject.Find("Main Camera");
+            Selection.activeObject = camera;
+            Equal(new[] { RowOf(h, "Main Camera") }, System.Linq.Enumerable.ToArray(h.treeInternal.selectedIndices), "the selection shown");
+            h.treeInternal.SetSelection(RowOf(h, "Main"));
+            Equal(0, Selection.count, "a scene's row selects no object");
+            h.treeInternal.SetSelection(RowOf(h, "Main Camera"));
+            Check(Selection.activeGameObject == camera, "a row selects its object");
+        }
+
+        static void HierarchyCommandsStep()
+        {
+            var h = EditorWindow.GetWindow<HierarchyWindow>();
+            Scene scene = EditorSceneManager.GetActiveScene();
+            EditorSceneManager.SaveScene(scene);
+            Check(EditorApplication.ExecuteMenuItem("GameObject/Create Empty"), "Create Empty");
+            GameObject a = Selection.activeGameObject;
+            Check(a != null && a.name == "GameObject" && a.transform.parent == null, "a new root object, selected");
+            Check(scene.isDirty, "its scene changed");
+            h.RebuildInternal();
+            Check(h.renameFieldInternal != null && h.renameFieldInternal.value == "GameObject", "its name edited at once");
+            h.renameFieldInternal.value = "Renamed";
+            using (KeyDownEvent e = KeyDownEvent.GetPooled('\r', KeyCode.Return, EventModifiers.None))
+            {
+                e.target = h.renameFieldInternal;
+                h.renameFieldInternal.SendEvent(e);
+            }
+            Check(a.name == "Renamed" && !h.renamingInternal, "renamed by Enter");
+            EditorApplication.ExecuteMenuItem("GameObject/Create Empty");
+            GameObject b = Selection.activeGameObject;
+            h.RebuildInternal();
+            h.BeginRenameInternal(b);
+            using (KeyDownEvent e = KeyDownEvent.GetPooled((char)27, KeyCode.Escape, EventModifiers.None))
+            {
+                e.target = h.renameFieldInternal;
+                h.renameFieldInternal.SendEvent(e);
+            }
+            Equal("GameObject", b.name, "Escape keeps the name");
+            Check(EditorApplication.ExecuteMenuItem("GameObject/Create Empty Child"), "Create Empty Child");
+            GameObject child = Selection.activeGameObject;
+            Check(child.transform.parent == b.transform && child.name == "GameObject", "a child of the active object");
+            Selection.activeObject = b;
+            EditorApplication.ExecuteMenuItem("GameObject/Create Empty Child");
+            Equal("GameObject (1)", Selection.activeGameObject.name, "a sibling's name taken: a number");
+            Selection.activeObject = b;
+            Check(EditorApplication.ExecuteMenuItem("Edit/Duplicate"), "Duplicate");
+            GameObject copy = Selection.activeGameObject;
+            Check(copy != b && copy.name == "GameObject (1)" && copy.transform.GetSiblingIndex() == b.transform.GetSiblingIndex() + 1,
+                  "a copy after it, numbered");
+            Equal(2, copy.transform.childCount, "with its children");
+            Check(EditorApplication.ExecuteMenuItem("Edit/Delete"), "Delete");
+            Check(copy == null && Selection.count == 0, "the copy deleted");
+            Check(EditorApplication.ExecuteMenuItem("GameObject/Camera") && Selection.activeGameObject.GetComponent<Camera>() != null, "a camera");
+            Check(EditorApplication.ExecuteMenuItem("GameObject/Light/Directional Light") &&
+                  Selection.activeGameObject.GetComponent<Light>().type == LightType.Directional, "a light");
+            Equal(new[] { "Main*", "Main Camera", "Renamed", "GameObject", "GameObject", "GameObject (1)", "Camera", "Directional Light" },
+                  HierarchyTexts(h), "the rows (expanded to the selection)");
+        }
+
+        static int s_HierarchyChanges;
+
+        static void HierarchyChanged()
+        {
+            var h = EditorWindow.GetWindow<HierarchyWindow>();
+            GameObject renamed = GameObject.Find("Renamed");
+            GameObject camera = GameObject.Find("Main Camera");
+            // Into the camera, before its first child: the world position stays.
+            renamed.transform.position = new Vector3(3, 0, 0);
+            camera.transform.position = new Vector3(1, 1, 1);
+            EditorApplication.hierarchyChanged += () => s_HierarchyChanges++;
+            HierarchyWindowMove(renamed, camera.transform, 0);
+            Check(renamed.transform.parent == camera.transform && renamed.transform.GetSiblingIndex() == 0, "moved into another");
+            Check((renamed.transform.position - new Vector3(3, 0, 0)).magnitude < 1e-4f, "its world position kept");
+            renamed.SetActive(false);
+            string[] texts = HierarchyTexts(h);
+            Check(Array.IndexOf(texts, "Renamed") == Array.IndexOf(texts, "Main Camera") + 1, "shown under it");
+            Element row = HierarchyWindow.RowElementInternal(h.treeInternal.GetRootElementForIndex(Array.IndexOf(texts, "Renamed")));
+            Check(row != null && row.ClassListContains("hierarchy-inactive"), "an inactive object dim");
+            s_Steps.Enqueue(("the change told", () => Check(s_HierarchyChanges > 0, "EditorApplication.hierarchyChanged raised")));
+        }
+
+        // The Hierarchy's drop (its commands' Move, the window's drop target aside).
+        static void HierarchyWindowMove(GameObject go, Transform parent, int index)
+        {
+            var type = typeof(HierarchyWindow).Assembly.GetType("HelixEditor.HierarchyCommands");
+            type.GetMethod("Move", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(null, new object[] { new List<GameObject> { go }, go.scene, parent, index });
+        }
+
+        static void HierarchySearch()
+        {
+            var h = EditorWindow.GetWindow<HierarchyWindow>();
+            h.searchFieldInternal.value = "light";
+            Equal(new[] { "Main*", "Directional Light" }, HierarchyTexts(h), "the objects whose names hold the text, as a list");
+            h.searchFieldInternal.value = "";
+            Check(HierarchyTexts(h).Length > 2, "all again");
+            var hidden = new GameObject("Editor Only") { hideFlags = HideFlags.HideInHierarchy };
+            Check(Array.IndexOf(HierarchyTexts(h), "Editor Only") < 0, "an object hidden in the hierarchy not shown");
+            HelixEngine.Object.DestroyImmediate(hidden);
+        }
+
+        static List<string> VisibleNames(SerializedObject so)
+        {
+            var names = new List<string>();
+            SerializedProperty it = so.GetIterator();
+            for (bool enter = true; it.NextVisible(enter); enter = false)
+                names.Add(it.name);
+            return names;
+        }
+
+        static void SerializedTransform()
+        {
+            GameObject camera = GameObject.Find("Main Camera");
+            camera.transform.localPosition = new Vector3(1, 2, 3);
+            Scene scene = camera.scene;
+            EditorSceneManager.SaveScene(scene);
+            var so = new SerializedObject(camera.transform);
+            Check(so.targetObject == camera.transform && !so.isEditingMultipleObjects, "its object");
+            List<string> names = VisibleNames(so);
+            Check(names.Contains("m_LocalPosition") && names.Contains("m_LocalRotation") && names.Contains("m_LocalScale"), $"the fields ({string.Join(", ", names)})");
+            Check(!names.Contains("m_GameObject") && !names.Contains("m_ObjectHideFlags"), "the bookkeeping left out");
+            SerializedProperty position = so.FindProperty("m_LocalPosition");
+            Equal(SerializedPropertyType.Vector3, position.propertyType, "a Vector3");
+            Equal("Local Position", position.displayName, "its display name");
+            Equal(new Vector3(1, 2, 3), position.vector3Value, "its value");
+            Equal(2f, so.FindProperty("m_LocalPosition.y").floatValue, "a field of it");
+            Equal(SerializedPropertyType.Float, so.FindProperty("m_LocalPosition.y").propertyType, "a float");
+            Check(!position.hasVisibleChildren && position.hasChildren, "a composite value: one field");
+            position.vector3Value = new Vector3(5, 6, 7);
+            Check(so.hasModifiedProperties, "a change waiting");
+            Equal(new Vector3(1, 2, 3), camera.transform.localPosition, "not yet in the object");
+            Equal(new Vector3(5, 6, 7), position.vector3Value, "shown at once");
+            Check(so.ApplyModifiedProperties(), "applied");
+            Equal(new Vector3(5, 6, 7), camera.transform.localPosition, "in the object");
+            Check(!so.hasModifiedProperties && scene.isDirty, "its scene changed");
+            camera.transform.localScale = new Vector3(2, 2, 2);
+            so.Update();
+            Equal(new Vector3(2, 2, 2), so.FindProperty("m_LocalScale").vector3Value, "read again by Update");
+            Equal(SerializedPropertyType.Quaternion, so.FindProperty("m_LocalRotation").propertyType, "a Quaternion");
+            so.Dispose();
+        }
+
+        static void SerializedScript()
+        {
+            GameObject host = new GameObject("Inspected");
+            var c = host.AddComponent<Inspected>();
+            GameObject other = GameObject.Find("Main Camera");
+            Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Checker.png");
+            var so = new SerializedObject(c);
+            List<string> names = VisibleNames(so);
+            Check(names.Contains("count") && names.Contains("numbers") && names.Contains("pair"), $"the script's fields ({string.Join(", ", names)})");
+            Check(!names.Contains("hidden"), "HideInInspector left out");
+            Equal(3, so.FindProperty("count").intValue, "an int");
+            Equal(SerializedPropertyType.Integer, so.FindProperty("count").propertyType, "an Integer");
+            Equal(1.5f, so.FindProperty("speed").floatValue, "a float");
+            Equal("Hello", so.FindProperty("title").stringValue, "a string");
+            Check(so.FindProperty("on").boolValue && so.FindProperty("on").propertyType == SerializedPropertyType.Boolean, "a bool");
+            SerializedProperty mode = so.FindProperty("mode");
+            Equal(SerializedPropertyType.Enum, mode.propertyType, "an enum");
+            Equal(1, mode.enumValueIndex, "its index");
+            Equal(new[] { "First", "Second", "Third" }, mode.enumDisplayNames, "its names");
+            Equal(new Color(1, 0, 0, 1), so.FindProperty("tint").colorValue, "a color");
+            Equal(SerializedPropertyType.Color, so.FindProperty("tint").propertyType, "a Color");
+            Equal("How far", so.FindProperty("range").tooltip, "a tooltip");
+            SerializedProperty numbers = so.FindProperty("numbers");
+            Check(numbers.isArray && numbers.arraySize == 3, "an array");
+            Equal(2, numbers.GetArrayElementAtIndex(1).intValue, "an element");
+            Equal("Element 1", numbers.GetArrayElementAtIndex(1).displayName, "its name");
+            Equal("Size", so.FindProperty("numbers.Array.size").displayName, "the size's name");
+            Equal("a", so.FindProperty("pair").FindPropertyRelative("key").stringValue, "a struct's field");
+            Check(so.FindProperty("pair").hasVisibleChildren, "a struct's fields shown");
+            Equal(SerializedPropertyType.ObjectReference, so.FindProperty("icon").propertyType, "a reference");
+
+            so.FindProperty("count").intValue = 10;
+            so.FindProperty("speed").floatValue = 0.25f;
+            so.FindProperty("title").stringValue = "World";
+            so.FindProperty("on").boolValue = false;
+            mode.enumValueIndex = 2;
+            so.FindProperty("tint").colorValue = new Color(0, 1, 0, 0.5f);
+            so.FindProperty("offset").vector3Value = new Vector3(9, 8, 7);
+            so.FindProperty("icon").objectReferenceValue = texture;
+            so.FindProperty("target").objectReferenceValue = other;
+            so.FindProperty("pair.value").intValue = 70;
+            Check(so.ApplyModifiedProperties(), "applied");
+            Check(c.count == 10 && c.speed == 0.25f && c.title == "World" && !c.on && c.mode == InspectedMode.Third, "the values in the script");
+            Equal(new Color(0, 1, 0, 0.5f), c.tint, "the color");
+            Equal(new Vector3(9, 8, 7), c.offset, "the vector");
+            Check(c.icon == texture && c.target == other, "the references (an asset, an object of the scene)");
+            Equal(70, c.pair.value, "the struct's field");
+            Check(c.validated > 0, "OnValidate after the change");
+            Check(so.FindProperty("icon").objectReferenceValue == texture, "the reference read back");
+
+            numbers = so.FindProperty("numbers");
+            numbers.InsertArrayElementAtIndex(1);
+            Equal(4, numbers.arraySize, "an element inserted");
+            so.ApplyModifiedProperties();
+            Equal(new[] { 1, 2, 2, 3 }, c.numbers, "a copy of it after it");
+            numbers = so.FindProperty("numbers");
+            numbers.DeleteArrayElementAtIndex(0);
+            so.ApplyModifiedProperties();
+            Equal(new[] { 2, 2, 3 }, c.numbers, "an element deleted");
+            numbers = so.FindProperty("numbers");
+            Check(numbers.MoveArrayElement(2, 0), "moved");
+            so.ApplyModifiedProperties();
+            Equal(new[] { 3, 2, 2 }, c.numbers, "an element moved");
+            so.FindProperty("numbers").arraySize = 1;
+            so.ApplyModifiedProperties();
+            Equal(new[] { 3 }, c.numbers, "made shorter");
+            c.count = 42;
+            so.Update();
+            Equal(42, so.FindProperty("count").intValue, "read again");
+            so.Dispose();
+            HelixEngine.Object.DestroyImmediate(host);
+        }
+
+        static void SerializedSeveral()
+        {
+            var a = new GameObject("A");
+            var b = new GameObject("B");
+            a.transform.localPosition = new Vector3(1, 0, 0);
+            b.transform.localPosition = new Vector3(2, 0, 0);
+            var so = new SerializedObject(new HelixEngine.Object[] { a.transform, b.transform });
+            Check(so.isEditingMultipleObjects && so.targetObjects.Length == 2, "two objects");
+            Check(so.FindProperty("m_LocalPosition").hasMultipleDifferentValues, "their positions differ");
+            Check(so.FindProperty("m_LocalPosition.x").hasMultipleDifferentValues && !so.FindProperty("m_LocalPosition.y").hasMultipleDifferentValues,
+                  "where they differ");
+            Check(!so.FindProperty("m_LocalScale").hasMultipleDifferentValues, "their scales do not");
+            so.FindProperty("m_LocalPosition.x").floatValue = 4;
+            so.ApplyModifiedProperties();
+            Check(a.transform.localPosition.x == 4 && b.transform.localPosition.x == 4, "a change goes to both");
+            Check(!so.FindProperty("m_LocalPosition").hasMultipleDifferentValues, "the same now");
+            bool threw = false;
+            try
+            {
+                new SerializedObject(new HelixEngine.Object[] { a.transform, a });
+            }
+            catch (ArgumentException)
+            {
+                threw = true;
+            }
+            Check(threw, "objects of different classes refused");
+            so.Dispose();
+            HelixEngine.Object.DestroyImmediate(a);
+            HelixEngine.Object.DestroyImmediate(b);
+        }
+
+        static object Internal(string type, string member, params object[] args)
+        {
+            Type t = typeof(EditorGui).Assembly.GetType(type, true);
+            var m = t.GetMethod(member, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+            return m.Invoke(null, args);
+        }
+
+        static GameObject s_Inspected;
+
+        static void EditorsAndDrawers()
+        {
+            s_Inspected = new GameObject("Inspected Host");
+            var c = s_Inspected.AddComponent<Inspected>();
+            int enabled = InspectedEditor.s_Enabled;
+            Editor e = Editor.CreateEditor(c);
+            Check(e is InspectedEditor && e.target == c, "the registered editor of the type");
+            Check(InspectedEditor.s_Enabled == enabled + 1 && ((InspectedEditor)e).targetsAtEnable == 1, "its targets known as OnEnable runs");
+            Check(e.serializedObject != null && e.serializedObject.targetObject == c, "its serialized object");
+            Editor generic = Editor.CreateEditor(s_Inspected);
+            Equal("GenericInspector", generic.GetType().Name, "the default inspector without one");
+            Editor transform = Editor.CreateEditor(s_Inspected.transform);
+            Equal("TransformInspector", transform.GetType().Name, "the Transform's own editor");
+            HelixEngine.Object.DestroyImmediate(transform);
+            Editor cached = e;
+            Editor.CreateCachedEditor(c, null, ref cached);
+            Check(cached == e, "a cached editor kept");
+            Editor.CreateCachedEditor(s_Inspected.transform, null, ref cached);
+            Check(cached != e && cached.target == s_Inspected.transform, "made anew for other targets");
+            HelixEngine.Object.DestroyImmediate(cached);
+            HelixEngine.Object.DestroyImmediate(generic);
+
+            var so = e.serializedObject;
+            Equal(18f, EditorGui.GetPropertyHeight(so.FindProperty("count")), "a line");
+            Equal(18f, EditorGui.GetPropertyHeight(so.FindProperty("pair")), "a struct through its drawer");
+            Equal(27f + 18f, EditorGui.GetPropertyHeight(so.FindProperty("limited")), "a header above a slider");
+            Equal(30f + 18f, EditorGui.GetPropertyHeight(so.FindProperty("atLeast")), "a space above a field");
+            Equal(3 * 13 + 6f, EditorGui.GetPropertyHeight(so.FindProperty("notes")), "a multiline string");
+            SerializedProperty numbers = so.FindProperty("numbers");
+            numbers.isExpanded = false;
+            Equal(18f, EditorGui.GetPropertyHeight(numbers), "a closed array");
+            numbers.isExpanded = true;
+            Equal(18f + 4 * 20f, EditorGui.GetPropertyHeight(numbers), "an open array: its size and its items");
+            Equal(36f, EditorGui.GetPropertyHeight(SerializedPropertyType.Bounds, null), "bounds on two lines");
+
+            Equal(6.0, Evaluate("2*3"), "an expression");
+            Equal(0.75, Evaluate("(1+2)/4"), "with parentheses");
+            Equal(-2.5, Evaluate("-5/2"), "with a sign");
+            Check(!(bool)Internal("HelixEditor.EditorGui+Expression", "TryEvaluate", "2*", 0.0), "not an expression");
+
+            var menu = new GenericMenu();
+            int ran = 0;
+            menu.AddItem(new GuiContent("One"), true, () => ran++);
+            menu.AddItem(new GuiContent("Sub/Two"), false, d => ran += (int)d, 10);
+            menu.AddSeparator("");
+            menu.AddDisabledItem(new GuiContent("Off"));
+            menu.AddItem(new GuiContent("One"), false, () => ran += 100);
+            Equal(4, menu.GetItemCount(), "items (a duplicate left out)");
+            var items = typeof(GenericMenu).GetProperty("itemsInternal", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(menu)
+                        as System.Collections.Generic.IEnumerable<(string path, bool on, bool enabled, Action run)>;
+            foreach (var i in items)
+                if (i.enabled)
+                    i.run();
+            Equal(11, ran, "each item's callback");
+            GuiProbeWindow.s_Editor = e;
+        }
+
+        static double Evaluate(string text)
+        {
+            var args = new object[] { text, 0.0 };
+            Type t = typeof(EditorGui).Assembly.GetType("HelixEditor.EditorGui+Expression", true);
+            bool ok = (bool)t.GetMethod("TryEvaluate", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).Invoke(null, args);
+            return ok ? (double)args[1] : double.NaN;
+        }
+
+        static void GuiInWindow()
+        {
+            var w = EditorWindow.GetWindow<GuiProbeWindow>("Probe", typeof(SceneView));
+            w.Focus();
+            w.Repaint();
+        }
+
+        static void GuiDrawn()
+        {
+            Check(GuiProbeWindow.s_Passes > 0, $"the window's OnGui ran ({GuiProbeWindow.s_Passes})");
+            Check(GuiProbeWindow.s_Error == null, $"without errors ({GuiProbeWindow.s_Error})");
+            Check(GuiProbeWindow.s_ViewWidth > 100, $"the view's width known ({GuiProbeWindow.s_ViewWidth})");
+            Check(InspectedEditor.s_Drawn > 0, "the custom editor drew");
+            Check(InspectedPairDrawer.s_Drawn > 0, "the struct's drawer drew");
+            EditorWindow.GetWindow<GuiProbeWindow>().Close();
+        }
+
+        static void RetainedInspector()
+        {
+            var c = s_Inspected.GetComponent<Inspected>();
+            c.count = 3;
+            Editor generic = Editor.CreateEditor(c, typeof(Editor));
+            var inspector = new HelixEditor.UIElements.InspectorElement(generic);
+            EditorWindow.GetWindow<InspectorWindow>().rootElement.Add(inspector);
+            var count = inspector.Find<HelixEditor.UIElements.PropertyField>("PropertyField:count");
+            Check(count != null, "a field of each property");
+            var field = count?.Find<IntegerField>();
+            Check(field != null && field.value == 3, $"an int as an IntegerField with its value ({field?.value})");
+            field.value = 7;
+            Equal(7, c.count, "a change written into the object");
+            Check(inspector.Find<Label>("pair-label")?.text == "pair: a", "the drawer's own retained GUI");
+            Check(inspector.Find<HelixEditor.UIElements.PropertyField>("PropertyField:hidden") == null, "a hidden field left out");
+            var title = inspector.Find<HelixEditor.UIElements.PropertyField>("PropertyField:title")?.Find<TextField>();
+            Check(title != null && title.value == "World" || title?.value == "Hello", "a string as a TextField");
+            c.count = 12;
+            int frames = 0;
+            Action wait = null;
+            wait = () =>
+            {
+                if (field.value != 12 && ++frames < 120)
+                {
+                    s_Steps.Enqueue(("the object's change shown", wait));
+                    return;
+                }
+                Equal(12, field.value, "the object's own change shown");
+                inspector.RemoveFromHierarchy();
+                HelixEngine.Object.DestroyImmediate(generic);
+                if (GuiProbeWindow.s_Editor != null)
+                    HelixEngine.Object.DestroyImmediate(GuiProbeWindow.s_Editor);
+                GuiProbeWindow.s_Editor = null;
+                HelixEngine.Object.DestroyImmediate(s_Inspected);
+            };
+            s_Steps.Enqueue(("the object's change shown", wait));
+        }
+
+        static GameObject s_InspectorHost, s_InspectorOther;
+
+        static InspectorWindow Inspector => EditorWindow.GetWindow<InspectorWindow>();
+
+        static Element Section(string type) => Inspector.contentInternal.Find("component:" + type);
+
+        static IEnumerable<(string path, bool on, bool enabled, Action run)> MenuItems(GenericMenu menu) =>
+            typeof(GenericMenu).GetProperty("itemsInternal", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(menu)
+                as IEnumerable<(string path, bool on, bool enabled, Action run)>;
+
+        static void RunItem(GenericMenu menu, string path)
+        {
+            foreach (var i in MenuItems(menu))
+                if (i.path == path)
+                {
+                    Check(i.enabled, $"'{path}' enabled");
+                    if (i.enabled)
+                        i.run();
+                    return;
+                }
+            Check(false, $"'{path}' in the menu");
+        }
+
+        static bool ItemEnabled(GenericMenu menu, string path)
+        {
+            foreach (var i in MenuItems(menu))
+                if (i.path == path)
+                    return i.enabled;
+            return false;
+        }
+
+        static void InspectorOfGameObject()
+        {
+            s_InspectorHost = new GameObject("Inspector Host");
+            s_InspectorHost.AddComponent<Inspected>();
+            s_InspectorOther = new GameObject("Inspector Other");
+            s_InspectorOther.AddComponent<Inspected>();
+            s_InspectorOther.AddComponent<Light>();
+            Inspector.isLocked = false;
+            Inspector.inspectorMode = InspectorMode.Normal;
+            Selection.activeObject = s_InspectorHost;
+        }
+
+        static int s_Rebuilds;
+
+        static void InspectorIdle() => s_Rebuilds = Inspector.rebuildsInternal;
+
+        static void InspectorStillIdle()
+        {
+            Equal(s_Rebuilds, Inspector.rebuildsInternal, "nothing changed: not built again");
+            using (var so = new SerializedObject(s_InspectorHost.GetComponent<Inspected>()))
+            {
+                so.FindProperty("count").intValue = so.FindProperty("count").intValue;
+                so.FindProperty("speed").floatValue = so.FindProperty("speed").floatValue;
+                so.FindProperty("title").stringValue = so.FindProperty("title").stringValue;
+                Check(!so.hasModifiedProperties, "a value written back as it is: no change");
+            }
+            // The custom editor's IMGUI as tall as what it laid out.
+            var gui = Section("Inspected")?.Find<ImguiContainer>();
+            Check(gui != null && gui.layout.height > 100, $"the IMGUI editor's height ({gui?.layout.height})");
+            Inspector.scrollInternal.scrollOffset = new Vector2(0, 40);
+            Check(Inspector.scrollInternal.scrollOffset.y == 40, $"scrolled ({Inspector.scrollInternal.scrollOffset.y})");
+            Inspector.RebuildInternal();
+        }
+
+        static void InspectorScrollKept()
+        {
+            Equal(40f, Inspector.scrollInternal.scrollOffset.y, "built again for the same objects: the scroll kept");
+            Inspector.scrollInternal.scrollOffset = Vector2.zero;
+        }
+
+        static void InspectorShown()
+        {
+            Element content = Inspector.contentInternal;
+            Check(content.Find("inspector-game-object") != null, "the GameObject's header");
+            var name = content.Find<TextField>("inspector-name");
+            Equal("Inspector Host", name?.value, "its name");
+            Check(Section("Transform") != null && Section("Inspected") != null, "a section of each component");
+            Equal("Inspected (Script)", Section("Inspected")?.Find<Label>("component-name")?.text, "a script's title");
+            Equal("Transform", Section("Transform")?.Find<Label>("component-name")?.text, "an engine class's title");
+            Check(Section("Inspected")?.Find("component-enabled") != null, "a behaviour's enabled toggle");
+            Check(Section("Transform")?.Find("component-enabled") == null, "none on the Transform");
+            Check(Section("Inspected")?.Find("inspector:Inspected") != null, "the script's editor");
+
+            name.value = "Renamed Host";
+            Equal("Renamed Host", s_InspectorHost.name, "a rename written");
+            var active = content.Find<Toggle>("inspector-active");
+            active.value = false;
+            Check(!s_InspectorHost.activeSelf, "deactivated by its toggle");
+            active.value = true;
+            Check(s_InspectorHost.activeSelf, "and active again");
+            content.Find<Toggle>("inspector-static").value = true;
+            Check(s_InspectorHost.isStatic, "made static");
+            content.Find<Toggle>("inspector-static").value = false;
+            Check(!s_InspectorHost.isStatic, "and not");
+            var layer = content.Find<HelixEditor.UIElements.LayerField>("inspector-layer");
+            layer.value = 5;
+            Equal(5, s_InspectorHost.layer, "its layer");
+            layer.value = 0;
+
+            var position = Section("Transform")?.Find<Vector3Field>("transform-position");
+            var rotation = Section("Transform")?.Find<Vector3Field>("transform-rotation");
+            Check(position != null && rotation != null && Section("Transform").Find<Vector3Field>("transform-scale") != null, "the Transform's own fields");
+            position.value = new Vector3(1, 2, 3);
+            Equal(new Vector3(1, 2, 3), s_InspectorHost.transform.localPosition, "a position written");
+            rotation.value = new Vector3(0, 90, 0);
+            Check(Math.Abs(s_InspectorHost.transform.localEulerAngles.y - 90) < 0.01f, $"a rotation written ({s_InspectorHost.transform.localEulerAngles})");
+            rotation.value = new Vector3(0, 370, 0);
+            Equal(new Vector3(0, 370, 0), rotation.value, "the typed angles kept while the rotation is theirs");
+            s_InspectorHost.transform.localScale = new Vector3(2, 2, 2);
+
+            var custom = new List<string>();
+            var menu = new GenericMenu();
+            ((IHasCustomMenu)Inspector).AddItemsToMenu(menu);
+            foreach (var i in MenuItems(menu))
+                custom.Add(i.path);
+            Equal(new[] { "Normal", "Debug", "Lock" }, custom.ToArray(), "the window's own menu items");
+
+            // Add Component: the list of classes, searched, one chosen.
+            Element popup = Inspector.ShowAddComponentInternal();
+            Check(popup != null && popup.panel != null, "the Add Component list shown");
+            var search = popup?.Find<TextField>("add-component-search");
+            search.value = "light";
+            Check(popup.Find("add:Light") != null, "the engine's class found by its name");
+            Check(popup.Find("add:Transform") == null && popup.Find("add:Scripts/EditorShell") == null, "no Transform, none of the editor's classes");
+            search.value = "inspected";
+            Check(popup.Find("add:Scripts/Inspected") != null, "a script under its group (" +
+                  string.Join(",", (System.Collections.Generic.IEnumerable<string>)popup.GetType().GetProperty("shownClassesInternal", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(popup)) + ")");
+            search.value = "light";
+            popup.GetType().GetMethod("Choose", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(popup, new object[] { "Light" });
+            Check(s_InspectorHost.GetComponent<Light>() != null, "the class added");
+            Check(popup.panel == null, "and the list closed");
+        }
+
+        static void InspectorComponentMenu()
+        {
+            Check(Section("Light") != null, "the added component's section");
+            var c = s_InspectorHost.GetComponent<Inspected>();
+            GenericMenu transformMenu = Inspector.ComponentMenuInternal(s_InspectorHost.transform);
+            Check(!ItemEnabled(transformMenu, "Remove Component") && !ItemEnabled(transformMenu, "Move Up"), "the Transform neither removed nor moved");
+            RunItem(transformMenu, "Reset");
+            Equal(Vector3.one, s_InspectorHost.transform.localScale, "the Transform reset");
+            Equal(Vector3.zero, s_InspectorHost.transform.localPosition, "its position too");
+
+            c.count = 42;
+            c.title = "Copied";
+            RunItem(Inspector.ComponentMenuInternal(c), "Copy Component");
+            c.count = 1;
+            c.title = "Changed";
+            RunItem(Inspector.ComponentMenuInternal(c), "Paste Component Values");
+            Equal(42, c.count, "a value pasted");
+            Equal("Copied", c.title, "a string pasted");
+            Check(!ItemEnabled(Inspector.ComponentMenuInternal(s_InspectorHost.GetComponent<Light>()), "Paste Component Values"), "no paste into another class");
+            RunItem(Inspector.ComponentMenuInternal(c), "Reset");
+            Equal(3, c.count, "a script reset to its class's values");
+            Equal("Hello", c.title, "its string too");
+
+            Light light = s_InspectorHost.GetComponent<Light>();
+            GenericMenu lightMenu = Inspector.ComponentMenuInternal(light);
+            Check(!ItemEnabled(lightMenu, "Move Down"), "the last one not moved down");
+            RunItem(lightMenu, "Move Up");
+            Component[] all = s_InspectorHost.GetComponents<Component>();
+            Check(all.Length == 3 && all[1] == light && all[2] == c, "moved up above the script");
+        }
+
+        static void InspectorMoved()
+        {
+            Element content = Inspector.contentInternal;
+            var order = new List<string>();
+            foreach (Element e in content.Children())
+                if (e.name != null && e.name.StartsWith("component:"))
+                    order.Add(e.name.Substring(10));
+            Equal(new[] { "Transform", "Light", "Inspected" }, order.ToArray(), "the sections in the components' order");
+            RunItem(Inspector.ComponentMenuInternal(s_InspectorHost.GetComponent<Light>()), "Remove Component");
+            Check(s_InspectorHost.GetComponent<Light>() == null, "the component removed");
+            Selection.objects = new HelixEngine.Object[] { s_InspectorHost, s_InspectorOther };
+        }
+
+        static void InspectorSeveral()
+        {
+            Element content = Inspector.contentInternal;
+            Check(Section("Transform") != null && Section("Inspected") != null, "the components both have");
+            Check(Section("Light") == null, "not one only the other has");
+            Equal("-", content.Find<TextField>("inspector-name")?.value, "names that differ shown as a dash");
+            int notes = 0;
+            foreach (Element e in content.Children())
+                if (e is Label l && l.text.StartsWith("Components that are only"))
+                    notes++;
+            Equal(1, notes, "the note of the components left out");
+            content.Find<Toggle>("inspector-static").value = true;
+            Check(s_InspectorHost.isStatic && s_InspectorOther.isStatic, "a change made to both");
+            content.Find<Toggle>("inspector-static").value = false;
+
+            Selection.activeObject = s_InspectorHost;
+            Inspector.RebuildInternal();
+            Inspector.isLocked = true;
+            Selection.activeObject = s_InspectorOther;
+        }
+
+        static void InspectorLockAndDebug()
+        {
+            Equal("Renamed Host", Inspector.contentInternal.Find<TextField>("inspector-name")?.value, "locked: the objects kept");
+            Inspector.isLocked = false;
+            Inspector.RebuildInternal();
+            Equal("Inspector Other", Inspector.contentInternal.Find<TextField>("inspector-name")?.value, "unlocked: the selection's");
+            Inspector.inspectorMode = InspectorMode.Debug;
+            Inspector.RebuildInternal();
+            Check(Section("Transform")?.Find("PropertyField:m_LocalRotation") != null, "Debug: the Transform's own fields");
+            Check(Section("Inspected")?.Find("PropertyField:hidden") != null, "Debug: a hidden field shown");
+            foreach (Editor e in Inspector.editorsInternal)
+                Equal("GenericInspector", e.GetType().Name, "Debug: the default inspector each");
+            Inspector.inspectorMode = InspectorMode.Normal;
+            Inspector.RebuildInternal();
+            Check(Section("Transform")?.Find("transform-position") != null, "Normal again");
+        }
+
+        static void InspectorAsset()
+        {
+            Selection.activeObject = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Checker.png");
+        }
+
+        static void InspectorAssetShown()
+        {
+            Element content = Inspector.contentInternal;
+            Check(content.Find("inspector-object") != null, "an asset's header");
+            Equal("Checker", content.Find<Label>("inspector-object-name")?.text, "its name");
+            Check(content.Find("inspector:Texture2D") != null, "its editor");
+            Selection.objects = Array.Empty<HelixEngine.Object>();
+            Inspector.RebuildInternal();
+            Equal(0, Inspector.contentInternal.childCount, "nothing selected: nothing shown");
+            HelixEngine.Object.DestroyImmediate(s_InspectorHost);
+            HelixEngine.Object.DestroyImmediate(s_InspectorOther);
         }
 
         static void Guids()
@@ -526,6 +1434,7 @@ namespace HelixEditor.Tests
                 System.IO.File.WriteAllText(System.IO.Path.Combine(root, "Assets/Data/Size.txt"), "6");
                 System.IO.File.WriteAllText(System.IO.Path.Combine(root, "Assets/Data/Linked.cube"), "@Assets/Data/Size.txt");
                 System.IO.File.WriteAllText(System.IO.Path.Combine(root, "Assets/Data/Custom.cube"), "%cube-size");
+                Check(EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene(), "Assets/Scenes/Start.helix"), "a scene saved");
                 AssetDatabase.RegisterCustomDependency("cube-size", Hash128.Compute("one"));
                 AssetDatabase.Refresh();
             }));
@@ -537,6 +1446,7 @@ namespace HelixEditor.Tests
         {
             s_Steps.Enqueue(("a stray artifact swept", () => Equal(4, ArtifactFiles(), "only the entries' files")));
             s_Steps.Enqueue(("the project as it was left", () => Equal(0, TestPostprocessor.s_Refreshes, "no changes reported as it opens")));
+            s_Steps.Enqueue(("the last scene opened again", () => Equal("Assets/Scenes/Start.helix", EditorSceneManager.GetActiveScene().path, "the active scene")));
             s_Steps.Enqueue(("loaded from the artifacts", LoadedFromArtifacts));
             s_Steps.Enqueue(("a changed setting imports again", SettingChanged));
             s_Steps.Enqueue(("a changed dependency imports again", DependencyChanged));
@@ -736,6 +1646,84 @@ namespace HelixEditor.Tests
             s_Steps.Enqueue(("dragging its tab onto the main window", DragBackToMain));
             s_Steps.Enqueue(("a frame", () => { }));
             s_Steps.Enqueue(("docked again", DockedBack));
+            s_Steps.Enqueue(("the main window maximized", () => { s_Width = Screen.width; WindowCall("ToggleMaximizeWindowInternal"); }));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("maximized, then restored", () =>
+            {
+                Check((bool)WindowCall("IsWindowMaximizedInternal"), "maximized");
+                WindowCall("ToggleMaximizeWindowInternal");
+            }));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("restored to its size", () =>
+            {
+                Check(!(bool)WindowCall("IsWindowMaximizedInternal"), "not maximized");
+                Equal(s_Width, Screen.width, "its width as before");
+            }));
+            EditorApplication.update += Next;
+        }
+
+        static int s_Width;
+
+        static object WindowCall(string name) =>
+            typeof(EditorApplication).GetMethod(name, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+                .Invoke(null, null);
+
+        /// <summary>For a look: the editor's fields drawn by an editor of a script in a window.</summary>
+        public static void ShowGuiProbe()
+        {
+            var host = new GameObject("Probe");
+            GuiProbeWindow.s_Editor = Editor.CreateEditor(host.AddComponent<Inspected>());
+            EditorWindow.GetWindow<GuiProbeWindow>("Probe", typeof(SceneView)).Focus();
+        }
+
+        /// <summary>For a look: the scene's camera selected (a script added) in the Inspector.</summary>
+        public static void ShowInspectorLook()
+        {
+            GameObject cam = GameObject.Find("Main Camera");
+            cam.AddComponent<Inspected>();
+            Selection.activeObject = cam;
+        }
+
+        /// <summary>For a look: the Inspector's Add Component list with a search.</summary>
+        public static void ShowAddComponentLook()
+        {
+            ShowInspectorLook();
+            // Once the Inspector is laid out (its button has its place).
+            int frames = 0;
+            Action open = null;
+            open = () =>
+            {
+                if (++frames < 4)
+                    return;
+                EditorApplication.update -= open;
+                EditorWindow.GetWindow<InspectorWindow>().ShowAddComponentInternal();
+            };
+            EditorApplication.update += open;
+        }
+
+        /// <summary>For a look: the Hierarchy's search focused with some text.</summary>
+        public static void FocusHierarchySearch()
+        {
+            var h = EditorWindow.GetWindow<HierarchyWindow>();
+            h.searchFieldInternal.Focus();
+            h.searchFieldInternal.value = "Cam";
+        }
+
+        /// <summary>The editor ends with a floating window open (its window and its view go with it).</summary>
+        public static void RunQuitWithFloating()
+        {
+            s_Steps.Enqueue(("floating a tab", FloatInWindow));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("its window", FloatingWindowShown));
+            s_Steps.Enqueue(("its object destroyed", () =>
+            {
+                foreach (GameObject go in HelixEngine.Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None))
+                    if (go.name.StartsWith("Floating Window", StringComparison.Ordinal))
+                        HelixEngine.Object.DestroyImmediate(go);
+            }));
+            s_Steps.Enqueue(("a frame", () => { }));
             EditorApplication.update += Next;
         }
 

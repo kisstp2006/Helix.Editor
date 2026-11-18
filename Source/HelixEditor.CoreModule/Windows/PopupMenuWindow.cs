@@ -45,7 +45,9 @@ namespace HelixEditor
             int display = EditorApplication.OpenPopupWindowInternal(new Rect(at.x, at.y, 200, 120));
             if (display < 0)
                 return false;
-            var obj = new GameObject($"Popup {display}") { hideFlags = HideFlags.DontSave };
+            // The editor's own object: in no scene of the user's, in no hierarchy.
+            var obj = new GameObject($"Popup {display}") { hideFlags = HideFlags.HideAndDontSave };
+            HelixEngine.Object.DontDestroyOnLoad(obj);
             var settings = ScriptableObject.CreateInstance<UIPanelSettings>();
             settings.hideFlags = HideFlags.DontSave;
             settings.targetDisplay = display;

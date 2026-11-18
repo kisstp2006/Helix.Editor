@@ -39,7 +39,9 @@ def scene():
                "  m_Name: Editor Camera\n  m_TagString: MainCamera\n  m_IsActive: 1\n")
     out.append("--- !h!4 &101\nTransform:\n  m_GameObject: {fileID: 100}\n  m_Children: []\n  m_Father: {fileID: 0}\n")
     out.append("--- !h!20 &102\nCamera:\n  m_GameObject: {fileID: 100}\n  m_Enabled: 1\n  m_ClearFlags: 2\n"
-               "  m_BackGroundColor: {r: 0.137, g: 0.137, b: 0.137, a: 1}\n")
+               "  m_BackGroundColor: {r: 0.137, g: 0.137, b: 0.137, a: 1}\n"
+               # After the cameras of the edited scenes (their views come with the scene and game views).
+               "  m_Depth: 100\n")
     out.append("--- !h!1 &110\nGameObject:\n  m_Component:\n  - component: {fileID: 111}\n  - component: {fileID: 112}\n"
                "  - component: {fileID: 113}\n  m_Name: Shell\n  m_IsActive: 1\n")
     out.append("--- !h!4 &111\nTransform:\n  m_GameObject: {fileID: 110}\n  m_Children: []\n  m_Father: {fileID: 0}\n")

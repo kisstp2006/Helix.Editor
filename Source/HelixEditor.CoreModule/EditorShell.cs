@@ -30,28 +30,13 @@ namespace HelixEditor
         void Start()
         {
             s_Shell = this;
-            m_Root = GetComponent<UIView>()?.rootElement;
-            if (m_Root == null)
+            if (GetComponent<UIView>()?.rootElement == null)
                 return;
             EditorMode.Apply("Default");
-            m_Title = m_Root.Find<Label>("title");
-            m_Status = m_Root.Find<Label>("status-message");
-            m_MenuBar = m_Root.Find("menu-bar");
-            m_Groups[0] = m_Root.Find("toolbar-left");
-            m_Groups[1] = m_Root.Find("toolbar-middle");
-            m_Groups[2] = m_Root.Find("toolbar-right");
-            string project = EditorApplication.projectNameInternal;
-            string title = string.IsNullOrEmpty(project) ? "Helix Engine" : $"Helix Engine - {project}";
-            if (m_Title != null)
-                m_Title.text = title;
-            EditorApplication.SetWindowTitleInternal(title);
-            Status(s_Pending);
-
-            m_Root.Find<Button>("caption-minimize").clicked += EditorApplication.MinimizeWindowInternal;
-            var maximize = m_Root.Find<Button>("caption-maximize");
-            maximize.clicked += EditorApplication.ToggleMaximizeWindowInternal;
-            m_Maximize = maximize.Find("icon") ?? FirstChild(maximize);
-            m_Root.Find<Button>("caption-close").clicked += EditorApplication.CloseWindowInternal;
+            // The shell's objects stay apart from the scenes the user edits; those open once the shell is up.
+            foreach (GameObject root in HelixEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+                DontDestroyOnLoad(root);
+            EditorApplication.delayCall += RestoreScenes;
             EditorApplication.playModeStateChanged += s =>
             {
                 MainToolbar.Refresh("Editor/Play");
@@ -59,14 +44,65 @@ namespace HelixEditor
                 Status(EditorApplication.isPlaying ? "Play mode (the game runs with step 8 of the editor)." : "Ready");
             };
             EditorApplication.pauseStateChanged += s => MainToolbar.Refresh("Editor/Pause");
+            Bind(GetComponent<UIView>().rootElement);
+            DockManager.LoadStartLayout();
+            RegisterLayoutItems();
+        }
+
+        // The shell's parts in its view's elements: as it starts, and again when the view is built anew (its markup or
+        // style sheets changed on disk): the title, the status, the caption buttons, the menu bar, the toolbar, the dock.
+        void Bind(Element root)
+        {
+            m_Root = root;
+            m_Title = m_Root.Find<Label>("title");
+            m_Status = m_Root.Find<Label>("status-message");
+            m_MenuBar = m_Root.Find("menu-bar");
+            m_Groups[0] = m_Root.Find("toolbar-left");
+            m_Groups[1] = m_Root.Find("toolbar-middle");
+            m_Groups[2] = m_Root.Find("toolbar-right");
+            UpdateTitle();
+            Status(s_Pending);
+            m_Root.Find<Button>("caption-minimize").clicked += EditorApplication.MinimizeWindowInternal;
+            var maximize = m_Root.Find<Button>("caption-maximize");
+            maximize.clicked += EditorApplication.ToggleMaximizeWindowInternal;
+            m_Maximize = maximize.Find("icon") ?? FirstChild(maximize);
+            m_Maximized = !EditorApplication.IsWindowMaximizedInternal();
+            m_Root.Find<Button>("caption-close").clicked += EditorApplication.CloseWindowInternal;
+            m_MenuVersion = m_ToolbarVersion = uint.MaxValue;
             Rebuild();
             Element dock = m_Root.Find("dock-root");
             if (dock != null)
-            {
                 DockManager.Attach(dock);
-                DockManager.LoadStartLayout();
-            }
-            RegisterLayoutItems();
+        }
+
+        static void RestoreScenes()
+        {
+            SceneManagement.EditorSceneManager.RestoreSetupInternal();
+            SceneManagement.EditorSceneManager.sceneOpened += (scene, mode) => UpdateTitle();
+            SceneManagement.EditorSceneManager.newSceneCreated += (scene, setup, mode) => UpdateTitle();
+            SceneManagement.EditorSceneManager.sceneSaved += scene => UpdateTitle();
+            SceneManagement.EditorSceneManager.sceneDirtied += scene => UpdateTitle();
+            SceneManagement.EditorSceneManager.sceneClosed += scene => UpdateTitle();
+            HelixEngine.SceneManagement.SceneManager.activeSceneChanged += (from, to) => UpdateTitle();
+            UpdateTitle();
+        }
+
+        // "<scene>* - <project> - Helix Engine": the active scene, its changes marked.
+        static void UpdateTitle()
+        {
+            string project = EditorApplication.projectNameInternal;
+            HelixEngine.SceneManagement.Scene scene = SceneManagement.EditorSceneManager.GetActiveScene();
+            string sceneName = scene.IsValid() && scene.name != "Editor" ? scene.name + (scene.isDirty ? "*" : "") : null;
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(sceneName))
+                parts.Add(sceneName);
+            if (!string.IsNullOrEmpty(project))
+                parts.Add(project);
+            parts.Add("Helix Engine");
+            string title = string.Join(" - ", parts);
+            if (s_Shell != null && s_Shell.m_Title != null)
+                s_Shell.m_Title.text = title;
+            EditorApplication.SetWindowTitleInternal(title);
         }
 
         static Element FirstChild(Element e)
@@ -80,6 +116,10 @@ namespace HelixEditor
         {
             if (m_Root == null)
                 return;
+            // Built anew: another root, or the parts found before gone from it.
+            Element root = GetComponent<UIView>()?.rootElement;
+            if (root != null && (root != m_Root || m_MenuBar == null || m_MenuBar.panel == null))
+                Bind(root);
             Rebuild();
             DockManager.Tick();
             PopupMenuWindow.Tick();
@@ -191,7 +231,15 @@ namespace HelixEditor
             }
         }
 
-        static void AddEntries(GenericDropdownMenu menu, string path, string prefix)
+        /// <summary>A menu at an element (in its own panel).</summary>
+        internal static void ShowMenu(GenericDropdownMenu menu, Element anchor, Rect at)
+        {
+            Element root = anchor?.panel?.visualTree;
+            if (root != null)
+                menu.DropDown(at, root, DropdownMenuSizeMode.Auto);
+        }
+
+        internal static void AddEntries(GenericDropdownMenu menu, string path, string prefix)
         {
             foreach (string text in EditorMenus.EntriesInternal(path))
             {

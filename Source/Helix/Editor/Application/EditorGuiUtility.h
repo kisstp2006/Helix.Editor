@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Helix/Core/Basics/Tags.h>
+#include <Helix/Core/Containers/Array.h>
 #include <Helix/Core/Strings/String.h>
 #include <Helix/Engine/Object/Object.h>
 #include <Helix/Scripting/Bindings/Interop.h>
@@ -15,5 +16,7 @@ namespace helix::editor
     public:
         // The asset's main object, null when the data folder has no asset at the path.
         HX_FUNCTION() static engine::Object* Load(StringView path);
+        // The tag manager's tags in their order (Untagged first), for the editor's tag fields.
+        HX_FUNCTION(Internal) static Array<String> TagsInternal();
     };
 }

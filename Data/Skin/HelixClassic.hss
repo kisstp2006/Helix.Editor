@@ -41,6 +41,10 @@
     --hx-window-dropdown-width: 60px;
     --hx-window-dropdown-wide-width: 100px;
     --hx-window-padding: 6px;
+    --hx-hierarchy-row-height: 18px;
+    --hx-hierarchy-indent: 14px;
+    --hx-inspector-titlebar-height: 22px;
+    --hx-inspector-label-width: 120px;
     --hx-status-bar-height: 20px;
     --hx-status-logo-size: 14px;
     --hx-splitter-size: 3px;

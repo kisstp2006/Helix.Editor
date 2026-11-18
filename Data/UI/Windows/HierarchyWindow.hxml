@@ -1,8 +1,8 @@
 <HXML>
-  <!-- The Hierarchy window: its toolbar (Create, the search) over the scene's objects. -->
+  <!-- The Hierarchy window: its toolbar (the Create menu, the search) over the open scenes' objects. -->
   <Element class="window-toolbar">
-    <Button class="window-dropdown plain"><Label text="Create"/><Element class="icon arrow-down"/></Button>
-    <Element class="window-search"><Element class="icon icon-search"/><Label class="window-search-text" text="All"/></Element>
+    <Button name="hierarchy-create" class="window-dropdown plain"><Label text="Create"/><Element class="icon arrow-down"/></Button>
+    <Element class="window-search"><Element class="icon icon-search"/><TextField name="hierarchy-search" class="window-search-field"/></Element>
   </Element>
-  <Element class="window-content"><Label class="window-note" text="The scene's objects come with step 4."/></Element>
+  <Element name="hierarchy-content" class="window-content hierarchy-content"/>
 </HXML>

@@ -9,14 +9,48 @@ namespace HelixEditor
     {
         static bool Later() => false;
 
-        [MenuItem("File/New Scene %n", false, 0)] static void NewScene() { }
-        [MenuItem("File/New Scene %n", true)] static bool NewSceneValid() => Later();
-        [MenuItem("File/Open Scene %o", false, 1)] static void OpenScene() { }
-        [MenuItem("File/Open Scene %o", true)] static bool OpenSceneValid() => Later();
-        [MenuItem("File/Save %s", false, 11)] static void Save() { }
-        [MenuItem("File/Save %s", true)] static bool SaveValid() => Later();
-        [MenuItem("File/Save As... %#s", false, 12)] static void SaveAs() { }
-        [MenuItem("File/Save As... %#s", true)] static bool SaveAsValid() => Later();
+        [MenuItem("File/New Scene %n", false, 0)]
+        static void NewScene()
+        {
+            if (SceneManagement.EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                SceneManagement.EditorSceneManager.NewScene(SceneManagement.NewSceneSetup.DefaultGameObjects, SceneManagement.NewSceneMode.Single);
+        }
+
+        [MenuItem("File/Open Scene %o", false, 1)]
+        static void OpenScene()
+        {
+            string chosen = EditorUtility.OpenFilePanel("Open Scene", "Assets", "helix");
+            string path = AssetPathOf(chosen);
+            if (path != null && SceneManagement.EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                SceneManagement.EditorSceneManager.OpenScene(path);
+            else if (!string.IsNullOrEmpty(chosen) && path == null)
+                Debug.LogError($"Open Scene: '{chosen}' is no scene of the project.");
+        }
+
+        [MenuItem("File/Save %s", false, 11)]
+        static void Save() => SceneManagement.EditorSceneManager.SaveScene(SceneManagement.EditorSceneManager.GetActiveScene());
+
+        [MenuItem("File/Save As... %#s", false, 12)]
+        static void SaveAs()
+        {
+            HelixEngine.SceneManagement.Scene scene = SceneManagement.EditorSceneManager.GetActiveScene();
+            string path = EditorUtility.SaveFilePanelInProject("Save Scene", scene.name, "helix", "Save the scene in the project.");
+            if (!string.IsNullOrEmpty(path))
+                SceneManagement.EditorSceneManager.SaveScene(scene, path);
+        }
+
+        // A file of the project as its project path (null for one outside it).
+        static string AssetPathOf(string file)
+        {
+            if (string.IsNullOrEmpty(file))
+                return null;
+            string root = System.IO.Path.GetFullPath(EditorApplication.projectPathInternal).Replace('\\', '/').TrimEnd('/');
+            string full = System.IO.Path.GetFullPath(file).Replace('\\', '/');
+            if (!full.StartsWith(root + "/", System.StringComparison.OrdinalIgnoreCase))
+                return null;
+            string path = full.Substring(root.Length + 1);
+            return AssetDatabase.AssetPathExists(path) ? path : null;
+        }
         [MenuItem("File/Build Profiles %#b", false, 30)] static void BuildProfiles() { }
         [MenuItem("File/Build Profiles %#b", true)] static bool BuildProfilesValid() => Later();
         [MenuItem("File/Exit", false, 50)] static void Exit() => EditorApplication.Exit(0);
@@ -37,17 +71,27 @@ namespace HelixEditor
         [MenuItem("Assets/Create/Folder", true)] static bool CreateFolderValid() => Later();
         [MenuItem("Assets/Create/C# Script", false, 1)] static void CreateScript() { }
         [MenuItem("Assets/Create/C# Script", true)] static bool CreateScriptValid() => Later();
-        [MenuItem("Assets/Refresh %r", false, 20)] static void Refresh() { }
-        [MenuItem("Assets/Refresh %r", true)] static bool RefreshValid() => Later();
+        [MenuItem("Assets/Refresh %r", false, 20)] static void Refresh() => AssetDatabase.Refresh();
 
-        [MenuItem("GameObject/Create Empty %#n", false, 0)] static void CreateEmpty() { }
-        [MenuItem("GameObject/Create Empty %#n", true)] static bool CreateEmptyValid() => Later();
+        [MenuItem("GameObject/Create Empty %#n", false, 0)] static void CreateEmpty() => HierarchyCommands.Create("GameObject", null);
+        [MenuItem("GameObject/Create Empty Child &#n", false, 1)] static void CreateEmptyChild() => HierarchyCommands.Create("GameObject", Selection.activeTransform);
+        [MenuItem("GameObject/Create Empty Child &#n", true)] static bool CreateEmptyChildValid() => Selection.activeTransform != null;
         [MenuItem("GameObject/3D Object/Cube", false, 11)] static void Cube() { }
         [MenuItem("GameObject/3D Object/Cube", true)] static bool CubeValid() => Later();
-        [MenuItem("GameObject/Light/Directional Light", false, 12)] static void DirectionalLight() { }
-        [MenuItem("GameObject/Light/Directional Light", true)] static bool DirectionalLightValid() => Later();
-        [MenuItem("GameObject/Camera", false, 13)] static void Camera() { }
-        [MenuItem("GameObject/Camera", true)] static bool CameraValid() => Later();
+        [MenuItem("GameObject/Light/Directional Light", false, 12)]
+        static void DirectionalLight()
+        {
+            GameObject go = HierarchyCommands.Create("Directional Light", null, typeof(Light));
+            go.GetComponent<Light>().type = LightType.Directional;
+            go.transform.rotation = Quaternion.Euler(50, -30, 0);
+        }
+
+        [MenuItem("GameObject/Camera", false, 13)] static void Camera() => HierarchyCommands.Create("Camera", null, typeof(Camera));
+
+        [MenuItem("Edit/Duplicate %d", false, 10)] static void Duplicate() => HierarchyCommands.DuplicateSelection();
+        [MenuItem("Edit/Duplicate %d", true)] static bool DuplicateValid() => Selection.activeTransform != null;
+        [MenuItem("Edit/Delete", false, 11)] static void Delete() => HierarchyCommands.DeleteSelection();
+        [MenuItem("Edit/Delete", true)] static bool DeleteValid() => Selection.activeTransform != null;
 
         [MenuItem("Component/Add... %#a", false, 0)] static void AddComponent() { }
         [MenuItem("Component/Add... %#a", true)] static bool AddComponentValid() => Later();
