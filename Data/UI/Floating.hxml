@@ -1,0 +1,10 @@
+<HXML>
+  <!-- A floating window of the editor: a dock root the window's floating container is drawn in (its tab strips move
+       the window). -->
+  <Style src="../Skin/HelixClassic.hss"/>
+  <Style src="../Skin/Icons.hss"/>
+  <Style src="Shell.hss"/>
+  <Element name="floating" class="shell floating-window">
+    <Element name="dock-root" class="dock-root"/>
+  </Element>
+</HXML>

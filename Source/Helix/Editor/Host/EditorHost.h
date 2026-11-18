@@ -8,7 +8,8 @@
 // pipelines, the UI and the editor's module registered, the editor's data folder (its shell, skin and scene) and its C#
 // assemblies. Its own arguments:
 //   -projectPath <folder>  the project (the current folder by default)
-//   -pipeline <name>       the pipeline that renders (standard, physical or none; standard by default)
+//   -pipeline <name>       the pipeline that renders: a short name of Data/Settings/Pipelines.json (its default
+//                          without one) or a pipeline asset's class name
 //   -executeMethod <Namespace.Class.Method>  a static C# method run once the shell is up
 // Every argument of the player works too (-batchmode, -frames, -screenshot, -force-glcore, -force-device-index ...).
 namespace helix::editor
@@ -16,7 +17,7 @@ namespace helix::editor
     struct EditorOptions
     {
         String projectPath;
-        String pipeline = String("standard");
+        String pipeline;
         String executeMethod;
         Array<String> playerArgs = Array<String>();
     };

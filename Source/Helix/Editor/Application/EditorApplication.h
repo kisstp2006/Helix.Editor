@@ -3,6 +3,7 @@
 #include <Helix/Core/Basics/Tags.h>
 #include <Helix/Core/Strings/String.h>
 #include <Helix/Engine/Event/Event.h>
+#include <Helix/Math/Geometry.h>
 #include <Helix/Scripting/Bindings/Interop.h>
 
 namespace helix::platform
@@ -52,6 +53,25 @@ namespace helix::editor
         HX_FUNCTION(Internal) static bool IsWindowMaximizedInternal();
         HX_FUNCTION(Internal) static void CloseWindowInternal();
         HX_FUNCTION(Internal) static void SetWindowTitleInternal(StringView title);
+
+        // Windows of the editor's own beside the main one (floating windows): each a display (Displays) of the
+        // player's; its client area's rectangle on the desktop. -1 where the host has none (batch mode).
+        HX_PROPERTY(ReadOnly, Internal) static bool toolWindowsInternal();
+        HX_FUNCTION(Internal) static i32 OpenToolWindowInternal(StringView title, Rect rect);
+        HX_FUNCTION(Internal) static void CloseToolWindowInternal(i32 display);
+        HX_FUNCTION(Internal) static bool ToolWindowCloseRequestedInternal(i32 display);
+        HX_FUNCTION(Internal) static Rect DisplayRectInternal(i32 display);
+        HX_FUNCTION(Internal) static void SetDisplayRectInternal(i32 display, Rect rect);
+
+        // The host's tool windows.
+        struct ToolWindowHost
+        {
+            i32 (*open)(void* user, StringView title, Rect rect) = nullptr;
+            void (*close)(void* user, i32 display) = nullptr;
+            bool (*closeRequested)(void* user, i32 display) = nullptr;
+            void* user = nullptr;
+        };
+        static void SetToolWindowHost(const ToolWindowHost& host);
 
         // The host's: the window, the project, the frame's tick, a quit asked for.
         static void SetHost(platform::Window* window, StringView projectPath, StringView applicationPath);

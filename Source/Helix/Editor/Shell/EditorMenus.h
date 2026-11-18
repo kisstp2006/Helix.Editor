@@ -39,6 +39,8 @@ namespace helix::editor
     public:
         // A title of the menu bar and its order (File 0, Edit 10, ... as the reference's).
         HX_FUNCTION() static void AddTitle(StringView name, i32 order);
+        // The order a title not added gets (its first item's registration orders those of the same order).
+        HX_FUNCTION(Internal) static void SetNewTitleOrderInternal(i32 order);
         static void Add(StringView path, i32 priority, StringView shortcut, const MenuItemFunctions& functions);
         HX_FUNCTION() static bool Remove(StringView path);
         // An item's run (false when there is none, or its validation fails).

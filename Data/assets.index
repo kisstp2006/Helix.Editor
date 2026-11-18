@@ -5,9 +5,11 @@ ff8af3129edaa73d08e42397b3df0d27 Layouts/4 Split.layout
 9fcaa4bfc33f1c58c65c77f1d6b7b4b9 Layouts/Default.layout
 64a3dc0a077d33ec3efc36672eb752a3 Layouts/Tall.layout
 55151b19baa54bb0dd7c22d46fcfe6dd Layouts/Wide.layout
+7cb9d22d342f88d5ba2aac501988146d Modes/Default.mode
 198bfa1cb976d62f0d0e6cd255bccac4 Scenes/Editor.helix
 89efaaa2072673663bb33202c058ffda Scripts/EditorShell.asset
 0e7116487177f75ed43a634f126647ba Scripts/UIView.asset
+534d3976ae5a97e30fb92d98a8095d33 Settings/Pipelines.json
 c7d44b4fd62b0df81db8dd282b363171 Skin/HelixClassic.hss
 08e71984366f43ddfa33565041636dfa Skin/HelixClassic/Button.png
 21fc8a8710c3caadc1e85c1517ac069b Skin/HelixClassic/ButtonHover.png
@@ -60,5 +62,12 @@ b2523ad6d539560b1e13cc7881734909 Skin/Icons/ToolScale.png
 de587991aa75616a9b7fefede3151ef8 Skin/Icons/WindowInspectorWindow.png
 f0c28bcda6f4589da04cc11a95759c26 Skin/Icons/WindowProjectWindow.png
 49cd6f89483f6f09b008d2d2d606978b Skin/Icons/WindowSceneView.png
+53027091fc92fc24dab181da5733d663 UI/Floating.hxml
 bc2fb8b4243a36e9b1129da57f0cf40e UI/Shell.hss
 331c939610bc2838b20b0b2817647387 UI/Shell.hxml
+2136d521afaaacd377b3252b8bdac7ab UI/Windows/ConsoleWindow.hxml
+1401b069e727d359a52266e690dfe76b UI/Windows/GameView.hxml
+3421d4220490bd49596fde7129d5338f UI/Windows/HierarchyWindow.hxml
+fa4c5b3843006c8a0c343b3f057cc801 UI/Windows/InspectorWindow.hxml
+8411e5709657a2c1903fb3fb3e7c01ed UI/Windows/ProjectWindow.hxml
+c6ec9fe61988b5a0aa5617c90bfadc84 UI/Windows/SceneView.hxml

@@ -13,6 +13,20 @@
     "panelDark": "#2e2e2e",
     "separator": "#1a1a1a"
   },
+  "metrics": {
+    "comment": "Sizes in pixels (the style sheets' --hx-* lengths, also read by the editor's C# as custom style properties).",
+    "fontSize": 12, "titleFontSize": 12, "smallFontSize": 11,
+    "titleBarHeight": 26, "logoSize": 18, "captionButtonWidth": 40, "captionIconSize": 14,
+    "menuBarHeight": 20, "menuTitlePadding": 7, "menuItemHeight": 20, "menuPadding": 3,
+    "toolbarHeight": 30, "toolButtonWidth": 28, "toolButtonHeight": 22, "toolIconSize": 16, "toolbarDropdownHeight": 20,
+    "toolbarDropdownWidth": 90, "toolbarGap": 6,
+    "tabStripHeight": 21, "tabHeight": 19, "tabActiveHeight": 21, "tabPadding": 8, "tabIconSize": 14, "tabCloseSize": 12,
+    "windowToolbarHeight": 21, "windowControlHeight": 17, "windowIconSize": 14, "windowSearchWidth": 140, "windowDropdownWidth": 60, "windowDropdownWideWidth": 100, "windowPadding": 6,
+    "statusBarHeight": 20, "statusLogoSize": 14,
+    "splitterSize": 3, "areaMinSize": 60, "floatPadding": 12,
+    "dragThreshold": 6, "floatWidth": 360, "floatHeight": 260, "floatGrabX": 40, "floatGrabY": 10,
+    "windowX": 120, "windowY": 120, "windowWidth": 400, "windowHeight": 300
+  },
   "parts": {
     "TitleBar":      {"size": [24, 24], "slice": 6, "top": "#2f2f2f", "bottom": "#1f1f1f", "border": null, "highlight": "#ffffff10", "shade": "#00000060"},
     "MenuBar":       {"size": [24, 24], "slice": 6, "top": "#323232", "bottom": "#2a2a2a", "border": null, "highlight": "#ffffff0c", "shade": "#00000080"},

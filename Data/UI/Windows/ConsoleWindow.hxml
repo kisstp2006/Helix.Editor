@@ -1,0 +1,14 @@
+<HXML>
+  <!-- The Console: its toolbar (Clear, Collapse, Error Pause, the search, the counts) over the log. -->
+  <Element class="window-toolbar hx-toolbar">
+    <Button class="window-dropdown hx-dropdown"><Label text="Clear"/><Element class="icon arrow-down"/></Button>
+    <Button class="window-tool hx-button"><Label text="Collapse"/></Button>
+    <Button class="window-tool hx-button"><Label text="Error Pause"/></Button>
+    <Element class="window-fill"/>
+    <Element class="window-search hx-field"><Element class="icon icon-search"/><Label class="window-search-text" text=""/></Element>
+    <Button class="window-tool hx-button-on on"><Element class="icon icon-info"/><Label text="0"/></Button>
+    <Button class="window-tool hx-button-on on"><Element class="icon icon-warning"/><Label text="0"/></Button>
+    <Button class="window-tool hx-button-on on"><Element class="icon icon-error"/><Label text="0"/></Button>
+  </Element>
+  <Element class="window-content"><Label class="window-note" text="The log comes with step 6."/></Element>
+</HXML>

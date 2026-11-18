@@ -1,19 +1,20 @@
-/* The editor's shell over the skin's parts (.hx-*) and colors (--hx-*). */
+/* The editor's shell over the skin's parts (.hx-*), colors and sizes (--hx-*). */
 .shell {
     flex-grow: 1;
     background-color: var(--hx-window);
     -helix-font-family: "Segoe UI", "Noto Sans", "DejaVu Sans", "Liberation Sans";
-    font-size: 13px;
+    font-size: var(--hx-font-size);
     color: var(--hx-text);
 }
 
 /* The title bar: the logo, the window's title, the caption buttons. */
-.title-bar { flex-direction: row; align-items: center; height: 32px; flex-shrink: 0; padding-left: 8px; }
-.logo { width: 22px; height: 22px; margin-right: 8px; background-image: url("../Images/HelixLogo.png"); -helix-background-scale-mode: scale-to-fit; }
-.title { font-size: 14px; color: var(--hx-text-strong); }
+.title-bar { flex-direction: row; align-items: center; height: var(--hx-title-bar-height); flex-shrink: 0; padding-left: 6px; }
+.logo { width: var(--hx-logo-size); height: var(--hx-logo-size); margin-right: 6px; background-image: url("../Images/HelixLogo.png"); -helix-background-scale-mode: scale-to-fit; }
+.title { font-size: var(--hx-title-font-size); color: var(--hx-text-strong); }
 .caption-fill { flex-grow: 1; align-self: stretch; }
 .caption-buttons { flex-direction: row; align-self: stretch; }
-.caption-button { width: 46px; margin: 0px; padding: 0px; border-width: 0px; background-color: rgba(0, 0, 0, 0); align-items: center; justify-content: center; }
+.caption-button { width: var(--hx-caption-button-width); margin: 0px; padding: 0px; border-width: 0px; background-color: rgba(0, 0, 0, 0); align-items: center; justify-content: center; }
+.caption-button .icon { width: var(--hx-caption-icon-size); height: var(--hx-caption-icon-size); }
 .caption-button:hover { background-image: url("../Skin/HelixClassic/CaptionButtonHover.png"); }
 .caption-button.close:hover { background-image: url("../Skin/HelixClassic/CaptionCloseHover.png"); }
 
@@ -23,46 +24,55 @@
 .icon.restore { background-image: url("../Skin/Icons/Restore.png"); }
 .icon.close { background-image: url("../Skin/Icons/Close.png"); }
 .icon.lock { background-image: url("../Skin/Icons/Lock.png"); }
-.icon.arrow-down { width: 10px; height: 10px; background-image: url("../Skin/Icons/ArrowDown.png"); }
+.icon.arrow-down { width: 9px; height: 9px; background-image: url("../Skin/Icons/ArrowDown.png"); }
 
 /* The menu bar: its titles, lit while hovered or open. */
-.menu-bar { flex-direction: row; align-items: stretch; height: 24px; flex-shrink: 0; padding-left: 4px; }
-.menu-title { padding-left: 9px; padding-right: 9px; -helix-text-align: middle-center; color: var(--hx-text); }
+.menu-bar { flex-direction: row; align-items: stretch; height: var(--hx-menu-bar-height); flex-shrink: 0; padding-left: 2px; }
+.menu-title { padding-left: var(--hx-menu-title-padding); padding-right: var(--hx-menu-title-padding); -helix-text-align: middle-center; color: var(--hx-text); }
 .menu-title:hover, .menu-title.open { background-image: url("../Skin/HelixClassic/MenuItemHover.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; color: var(--hx-accent-text); }
 
 /* The main toolbar: three groups (left, middle, right) of the registry's elements. */
-.main-toolbar { flex-direction: row; align-items: center; height: 42px; flex-shrink: 0; padding-left: 8px; padding-right: 8px; }
+.main-toolbar { flex-direction: row; align-items: center; height: var(--hx-toolbar-height); flex-shrink: 0; padding-left: 6px; padding-right: 6px; }
 .toolbar-group { flex-direction: row; align-items: center; flex-basis: 0px; flex-grow: 1; }
 .toolbar-group.middle { justify-content: center; }
 .toolbar-group.right { justify-content: flex-end; }
-.toolbar-strip { flex-direction: row; margin-right: 10px; }
-.tool-button { width: 34px; height: 28px; margin: 0px; margin-right: 1px; padding: 0px; border-width: 0px; align-items: center; justify-content: center; }
+.toolbar-strip { flex-direction: row; margin-right: var(--hx-toolbar-gap); }
+.tool-button { width: var(--hx-tool-button-width); height: var(--hx-tool-button-height); margin: 0px; margin-right: 1px; padding: 0px; border-width: 0px; align-items: center; justify-content: center; }
 .tool-button:hover { background-image: url("../Skin/HelixClassic/ButtonHover.png"); }
 .tool-button:active { background-image: url("../Skin/HelixClassic/ButtonPressed.png"); }
 .tool-button.on { background-image: url("../Skin/HelixClassic/ButtonOn.png"); }
-.tool-button .icon { width: 20px; height: 20px; }
+.tool-button .icon { width: var(--hx-tool-icon-size); height: var(--hx-tool-icon-size); }
 .tool-button.on .icon { -helix-background-image-tint-color: var(--hx-accent-text); }
-.toolbar-dropdown { flex-direction: row; align-items: center; height: 28px; min-width: 110px; margin-left: 8px; padding-left: 10px; padding-right: 8px; border-width: 0px; }
+.toolbar-dropdown { flex-direction: row; align-items: center; height: var(--hx-toolbar-dropdown-height); min-width: var(--hx-toolbar-dropdown-width); margin-left: var(--hx-toolbar-gap); padding-left: 8px; padding-right: 6px; border-width: 0px; }
 .toolbar-dropdown:hover { background-image: url("../Skin/HelixClassic/ButtonHover.png"); }
 .toolbar-dropdown Label { flex-grow: 1; color: var(--hx-text); }
 
-/* The dock area: windows come with docking; until then the panel's color. */
-.dock-root { flex-grow: 1; flex-direction: row; margin: 2px; }
+/* The dock area. */
+.dock-root { flex-grow: 1; flex-direction: row; margin: 1px; }
 
 /* The status bar. */
-.status-bar { flex-direction: row; align-items: center; height: 30px; flex-shrink: 0; padding-left: 10px; padding-right: 10px; }
-.status-logo { width: 20px; height: 20px; margin-right: 8px; background-image: url("../Images/HelixLogo.png"); -helix-background-scale-mode: scale-to-fit; }
-.status-text { color: var(--hx-text); }
+.status-bar { flex-direction: row; align-items: center; height: var(--hx-status-bar-height); flex-shrink: 0; padding-left: 6px; padding-right: 6px; }
+.status-logo { width: var(--hx-status-logo-size); height: var(--hx-status-logo-size); margin-right: 6px; background-image: url("../Images/HelixLogo.png"); -helix-background-scale-mode: scale-to-fit; }
+.status-text { color: var(--hx-text); font-size: var(--hx-small-font-size); }
 .status-text.strong { color: var(--hx-text-strong); }
-.status-separator { width: 1px; height: 16px; margin-left: 10px; margin-right: 10px; background-color: var(--hx-text-dim); }
+.status-separator { width: 1px; height: 12px; margin-left: 8px; margin-right: 8px; background-color: var(--hx-text-dim); }
 .status-fill { flex-grow: 1; }
-.status-progress { width: 0px; height: 6px; margin-right: 10px; background-color: var(--hx-accent); }
-.status-lock { -helix-background-image-tint-color: var(--hx-text-dim); }
+.status-progress { width: 0px; height: 5px; margin-right: 8px; background-color: var(--hx-accent); }
+.status-lock { width: 12px; height: 12px; -helix-background-image-tint-color: var(--hx-text-dim); }
 
-/* The popup menus' look (the dropdown menu's own classes). */
-.helix-dropdown-menu__container-outer { background-image: url("../Skin/HelixClassic/Menu.png"); -helix-slice-left: 16; -helix-slice-top: 16; -helix-slice-right: 16; -helix-slice-bottom: 16; padding: 6px; }
+/* The popup menus (the dropdown menu's own classes): the skin's menu box, its items compact, lit while highlighted. */
+.helix-base-dropdown__container-outer { background-image: url("../Skin/HelixClassic/Menu.png"); -helix-slice-left: 16; -helix-slice-top: 16; -helix-slice-right: 16; -helix-slice-bottom: 16; background-color: rgba(0, 0, 0, 0); border-width: 0px; padding: var(--hx-menu-padding); padding-bottom: 8px; padding-right: 8px; }
+.helix-base-dropdown__item { min-height: var(--hx-menu-item-height); padding: 0px 10px 0px 4px; font-size: var(--hx-font-size); }
+.helix-base-dropdown__item:hover, .helix-base-dropdown__item--highlighted { background-color: rgba(0, 0, 0, 0); background-image: url("../Skin/HelixClassic/MenuItemHover.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
+.helix-base-dropdown__item:hover .helix-base-dropdown__label, .helix-base-dropdown__item--highlighted .helix-base-dropdown__label { color: var(--hx-accent-text); }
+.helix-base-dropdown__item:disabled:hover { background-image: none; }
+.helix-base-dropdown__item:disabled:hover .helix-base-dropdown__label { color: var(--hx-text-dim); }
+.helix-base-dropdown__label { color: var(--hx-text); }
+.helix-base-dropdown__item:disabled .helix-base-dropdown__label { color: #6c6c6c; }
+.helix-base-dropdown__separator { height: 1px; margin: 3px 4px 3px 4px; background-color: var(--hx-separator); border-bottom-width: 1px; border-bottom-color: #ffffff10; }
 
-/* Docking: splits, splitters, dock areas with their tab strips, floating containers, the drop indicator. */
+/* Docking: splits, splitters, dock areas with their tab strips, floating containers, the drop indicator. The
+   floating sizes and a new window's place are read by the dock as custom properties. */
 .dock-root { position: relative; }
 .dock-docked { flex-grow: 1; flex-direction: row; }
 .dock-docked > * { flex-grow: 1; }
@@ -70,42 +80,51 @@
 .dock-split { flex-direction: row; align-items: stretch; }
 .dock-split.column { flex-direction: column; }
 .dock-splitter { flex-shrink: 0; background-color: var(--hx-window); }
-.dock-splitter.row { width: 4px; cursor: resize-horizontal; }
-.dock-splitter.column { height: 4px; cursor: resize-vertical; }
-.dock-area { flex-direction: column; min-width: 60px; min-height: 60px; }
-.dock-tab-strip { flex-direction: row; align-items: flex-end; height: 30px; flex-shrink: 0; padding-left: 2px; }
-.dock-tab { flex-direction: row; align-items: center; height: 27px; padding-left: 10px; padding-right: 14px; margin-right: 1px; }
-.dock-tab.active { height: 29px; }
-.dock-tab-icon { width: 16px; height: 16px; margin-right: 6px; -helix-background-scale-mode: scale-to-fit; -helix-background-image-tint-color: var(--hx-text); }
-.dock-tab-label { color: var(--hx-text-dim); font-size: 13px; }
+.dock-splitter.row { width: var(--hx-splitter-size); cursor: resize-horizontal; }
+.dock-splitter.column { height: var(--hx-splitter-size); cursor: resize-vertical; }
+.dock-area { flex-direction: column; min-width: var(--hx-area-min-size); min-height: var(--hx-area-min-size); }
+.dock-tab-strip { flex-direction: row; align-items: flex-end; height: var(--hx-tab-strip-height); flex-shrink: 0; padding-left: 2px; }
+.dock-tab { flex-direction: row; align-items: center; height: var(--hx-tab-height); padding-left: var(--hx-tab-padding); padding-right: var(--hx-tab-padding); margin-right: 1px; }
+.dock-tab.active { height: var(--hx-tab-active-height); }
+.dock-tab-icon { width: var(--hx-tab-icon-size); height: var(--hx-tab-icon-size); margin-right: 4px; -helix-background-scale-mode: scale-to-fit; -helix-background-image-tint-color: var(--hx-text); }
+.dock-tab-label { color: var(--hx-text-dim); font-size: var(--hx-font-size); }
 .dock-tab.active .dock-tab-label { color: var(--hx-text-strong); }
+.dock-tab-close { width: var(--hx-tab-close-size); height: var(--hx-tab-close-size); margin-left: 4px; margin-right: -4px; background-image: url("../Skin/Icons/Close.png"); -helix-background-scale-mode: scale-to-fit; -helix-background-image-tint-color: var(--hx-text-dim); opacity: 0; }
+.dock-tab.active .dock-tab-close, .dock-tab:hover .dock-tab-close { opacity: 1; }
+.dock-tab-close:hover { -helix-background-image-tint-color: var(--hx-text-strong); background-color: #ffffff20; border-radius: 2px; }
 .dock-tab-fill { flex-grow: 1; }
 .dock-content { flex-grow: 1; flex-direction: column; }
 .editor-window-root { flex-grow: 1; flex-direction: column; }
-.dock-floating { position: absolute; flex-direction: column; padding: 12px; }
+.editor-window-gui { flex-grow: 1; }
+.dock-floating { position: absolute; flex-direction: column; padding: var(--hx-float-padding); }
 .dock-floating > .dock-area, .dock-floating > .dock-split { flex-grow: 1; }
 .dock-drop-indicator { position: absolute; background-color: rgba(58, 142, 230, 0.25); border-width: 2px; border-color: var(--hx-accent); }
 
+/* A floating window: the container fills it inside a border. */
+.floating-window { border-width: 1px; border-color: var(--hx-separator); }
+.floating-window .dock-root { margin: 0px; }
+
 /* The windows' toolbars and content. */
-.window-toolbar { flex-direction: row; align-items: center; height: 30px; flex-shrink: 0; padding-left: 6px; padding-right: 6px; }
-.window-dropdown { flex-direction: row; align-items: center; height: 22px; min-width: 70px; margin: 0px; margin-right: 6px; padding-left: 8px; padding-right: 6px; border-width: 0px; }
-.window-dropdown Label { flex-grow: 1; color: var(--hx-text); }
-.window-tool { flex-direction: row; align-items: center; justify-content: center; height: 22px; min-width: 26px; margin: 0px; margin-right: 4px; padding-left: 5px; padding-right: 5px; border-width: 0px; }
-.window-tool Label { color: var(--hx-text); margin-left: 2px; }
+.window-toolbar { flex-direction: row; align-items: center; height: var(--hx-window-toolbar-height); flex-shrink: 0; padding-left: 4px; padding-right: 4px; }
+.window-dropdown { flex-direction: row; align-items: center; height: var(--hx-window-control-height); min-width: var(--hx-window-dropdown-width); margin: 0px; margin-right: 4px; padding-left: 6px; padding-right: 4px; border-width: 0px; }
+.window-dropdown.wide { min-width: var(--hx-window-dropdown-wide-width); }
+.window-dropdown Label { flex-grow: 1; color: var(--hx-text); font-size: var(--hx-small-font-size); }
+.window-tool { flex-direction: row; align-items: center; justify-content: center; height: var(--hx-window-control-height); min-width: 22px; margin: 0px; margin-right: 3px; padding-left: 4px; padding-right: 4px; border-width: 0px; }
+.window-tool Label { color: var(--hx-text); margin-left: 2px; font-size: var(--hx-small-font-size); }
 .window-tool.on { background-image: url("../Skin/HelixClassic/ButtonOn.png"); -helix-slice-left: 7; -helix-slice-top: 7; -helix-slice-right: 7; -helix-slice-bottom: 7; }
-.window-tool .icon { width: 16px; height: 16px; }
-.window-search { flex-direction: row; align-items: center; height: 22px; min-width: 160px; flex-grow: 0.4; margin-left: 6px; margin-right: 6px; padding-left: 6px; }
-.window-search .icon { width: 14px; height: 14px; -helix-background-image-tint-color: var(--hx-text-dim); }
-.window-search-text { color: var(--hx-text-dim); margin-left: 4px; }
+.window-tool .icon { width: var(--hx-window-icon-size); height: var(--hx-window-icon-size); }
+.window-search { flex-direction: row; align-items: center; height: var(--hx-window-control-height); min-width: var(--hx-window-search-width); flex-grow: 0.4; margin-left: 4px; margin-right: 4px; padding-left: 4px; }
+.window-search .icon { width: 12px; height: 12px; -helix-background-image-tint-color: var(--hx-text-dim); }
+.window-search-text { color: var(--hx-text-dim); margin-left: 4px; font-size: var(--hx-small-font-size); }
 .window-fill { flex-grow: 1; }
-.window-content { flex-grow: 1; padding: 10px; }
+.window-content { flex-grow: 1; padding: var(--hx-window-padding); }
 .window-content.viewport { background-color: #2b3440; align-items: center; justify-content: center; }
 .window-note { color: var(--hx-text-dim); -helix-font-style: italic; }
 .icon-error { -helix-background-image-tint-color: #e05252; }
 .icon-warning { -helix-background-image-tint-color: #e8b33a; }
 .icon-info { -helix-background-image-tint-color: #c8c8c8; }
 .project-body { flex-grow: 1; flex-direction: row; }
-.project-tree { width: 200px; flex-shrink: 0; padding: 8px; border-right-width: 1px; border-right-color: var(--hx-separator); }
-.project-folder { padding: 3px; color: var(--hx-text); }
-.project-grid { flex-grow: 1; padding: 8px; }
-.project-breadcrumb { color: var(--hx-text-strong); margin-bottom: 10px; }
+.project-tree { width: 180px; flex-shrink: 0; padding: var(--hx-window-padding); border-right-width: 1px; border-right-color: var(--hx-separator); }
+.project-folder { padding: 2px; color: var(--hx-text); }
+.project-grid { flex-grow: 1; padding: var(--hx-window-padding); }
+.project-breadcrumb { color: var(--hx-text-strong); margin-bottom: 6px; }

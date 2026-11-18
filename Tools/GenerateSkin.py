@@ -149,6 +149,10 @@ def main():
     sheet = [f"/* The skin {name}: written by Tools/GenerateSkin.py from Skins/{name}.json. */", ":root {"]
     for key, value in skin["colors"].items():
         sheet.append(f"    --hx-{kebab(key)}: {value};")
+    # The sizes as lengths (the editor's C# reads them too, as custom style properties).
+    for key, value in skin.get("metrics", {}).items():
+        if key != "comment":
+            sheet.append(f"    --hx-{kebab(key)}: {value}px;")
     sheet.append("}")
     for part, spec in skin["parts"].items():
         w, h, pixels = render(spec)

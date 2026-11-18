@@ -1,0 +1,8 @@
+<HXML>
+  <!-- The Hierarchy window: its toolbar (Create, the search) over the scene's objects. -->
+  <Element class="window-toolbar hx-toolbar">
+    <Button class="window-dropdown hx-dropdown"><Label text="Create"/><Element class="icon arrow-down"/></Button>
+    <Element class="window-search hx-field"><Element class="icon icon-search"/><Label class="window-search-text" text="All"/></Element>
+  </Element>
+  <Element class="window-content"><Label class="window-note" text="The scene's objects come with step 4."/></Element>
+</HXML>

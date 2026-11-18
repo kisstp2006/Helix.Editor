@@ -1,0 +1,14 @@
+<HXML>
+  <!-- The Scene view: its toolbar (draw mode, RGB, lighting, 2D, effects, grid, Gizmos) over the viewport. -->
+  <Element class="window-toolbar hx-toolbar">
+    <Button class="window-dropdown hx-dropdown wide"><Label text="Textured"/><Element class="icon arrow-down"/></Button>
+    <Button class="window-dropdown hx-dropdown"><Label text="RGB"/><Element class="icon arrow-down"/></Button>
+    <Button class="window-tool hx-button-on on"><Element class="icon icon-light"/></Button>
+    <Button class="window-tool hx-button"><Label text="2D"/></Button>
+    <Button class="window-tool hx-button"><Element class="icon icon-effects"/></Button>
+    <Button class="window-tool hx-button-on on"><Element class="icon icon-grid"/></Button>
+    <Element class="window-fill"/>
+    <Button class="window-dropdown hx-dropdown"><Label text="Gizmos"/><Element class="icon arrow-down"/></Button>
+  </Element>
+  <Element class="window-content viewport"><Label class="window-note" text="The scene view comes with step 5."/></Element>
+</HXML>

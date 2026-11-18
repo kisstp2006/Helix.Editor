@@ -4,14 +4,16 @@ using HelixEngine.UI;
 
 namespace HelixEditor.Docking
 {
-    // The layout drawn in the shell's dock area: splits as rows and columns with splitters between their children, dock
-    // areas with their tab strip and the selected window's content, floating containers over them with a shadow. Tabs
-    // drag to reorder, onto another area's edges or middle (the drop zone lit), or out to float; splitters drag.
+    // The layout drawn in the shell's dock area (the main view) or a floating container drawn in its own window (a
+    // container's view): splits as rows and columns with splitters between their children, dock areas with their tab
+    // strip and the selected window's content; floating containers without a window of their own over the main view
+    // with a shadow. Tabs drag to reorder, onto an area's edges or middle in any view (the drop zone lit; the views'
+    // places on the desktop relate them), or out to float; splitters drag.
     internal sealed class DockView
     {
-        const float kDragStart = 6;
-
         readonly Element m_Root;
+        readonly int m_Display;
+        readonly FloatingContainer m_Container;
         readonly Element m_Docked, m_Floating, m_Indicator;
         readonly List<(DockArea area, Element element, Element strip)> m_Areas = new();
 
@@ -19,14 +21,41 @@ namespace HelixEditor.Docking
         string m_DragTab;
         Element m_DragFrom;
         Vector2 m_DragStart;
+        // The dragged tab's area when it is the area's only tab (not a target of its own tab).
+        DockArea m_DragArea;
         bool m_Dragging;
         int m_DragPointer;
 
         public Element root => m_Root;
+        public int display => m_Display;
+        public FloatingContainer container => m_Container;
 
-        public DockView(Element root)
+        // A size of the skin's (its --hx-* custom properties); a share of the view when the sheet lacks it.
+        internal float Metric(string name, float share)
+        {
+            if (m_Root.customStyle != null && m_Root.customStyle.TryGetValue(new CustomStyleProperty<float>("--hx-" + name), out float v))
+                return v;
+            Rect r = m_Root.worldBound;
+            return Mathf.Max(1, (name.EndsWith("Height") || name.EndsWith("height") || name.EndsWith("-y") ? r.height : r.width) * share);
+        }
+
+        // Where a tab dropped out of every area floats: its container under the pointer, grabbed at its tab.
+        internal Rect FloatRect(Vector2 p)
+        {
+            Rect root = m_Root.worldBound;
+            return new Rect(p.x - root.x - Metric("float-grab-x", 0), p.y - root.y - Metric("float-grab-y", 0), Metric("float-width", 0.3f),
+                            Metric("float-height", 0.3f));
+        }
+
+        // A new window's place in the view.
+        internal Rect NewWindowRect() =>
+            new Rect(Metric("window-x", 0.1f), Metric("window-y", 0.1f), Metric("window-width", 0.3f), Metric("window-height", 0.3f));
+
+        public DockView(Element root, int display = 0, FloatingContainer container = null)
         {
             m_Root = root;
+            m_Display = display;
+            m_Container = container;
             m_Root.Clear();
             m_Docked = new Element();
             m_Docked.AddToClassList("dock-docked");
@@ -70,6 +99,13 @@ namespace HelixEditor.Docking
             m_Areas.Clear();
             m_Docked.Clear();
             m_Floating.Clear();
+            // A container's view: its tree.
+            if (m_Container != null)
+            {
+                if (m_Container.root != null)
+                    m_Docked.Add(MakeNode(m_Container.root));
+                return;
+            }
             if (layout.maximized != null)
             {
                 m_Docked.Add(MakeArea(layout.maximized));
@@ -79,6 +115,9 @@ namespace HelixEditor.Docking
                 m_Docked.Add(MakeNode(layout.root));
             foreach (FloatingContainer f in layout.floating)
             {
+                // Those in a window of their own are drawn there.
+                if (DockManager.HasWindow(f))
+                    continue;
                 var container = new Element();
                 container.AddToClassList("dock-floating");
                 container.AddToClassList("hx-shadow");
@@ -167,11 +206,17 @@ namespace HelixEditor.Docking
             var strip = new Element();
             strip.AddToClassList("dock-tab-strip");
             strip.AddToClassList("hx-tab-strip");
+            // In a floating window the strip (but its tabs) moves the window.
+            if (m_Container != null)
+                strip.AddToClassList("editor-caption");
             e.Add(strip);
             for (int i = 0; i < area.tabs.Count; i++)
                 strip.Add(MakeTab(area, i));
             var fill = new Element();
             fill.AddToClassList("dock-tab-fill");
+            // In a floating window the strip's free part moves the window.
+            if (m_Container != null)
+                fill.AddToClassList("editor-caption");
             strip.Add(fill);
             var content = new Element();
             content.AddToClassList("dock-content");
@@ -183,6 +228,14 @@ namespace HelixEditor.Docking
                 w.rootElement.RemoveFromHierarchy();
                 content.Add(w.rootElement);
             }
+            // The window under the pointer (EditorWindow.mouseOverWindow).
+            e.RegisterCallback<PointerEnterEvent>(_ =>
+                EditorWindow.mouseOverWindow = area.selectedTab != null ? DockManager.WindowOf(area.selectedTab) : null);
+            e.RegisterCallback<PointerLeaveEvent>(_ =>
+            {
+                if (area.selectedTab != null && EditorWindow.mouseOverWindow == DockManager.WindowOf(area.selectedTab))
+                    EditorWindow.mouseOverWindow = null;
+            });
             m_Areas.Add((area, e, strip));
             return e;
         }
@@ -206,6 +259,16 @@ namespace HelixEditor.Docking
             var label = new Label(w != null ? w.titleContent.text : tab);
             label.AddToClassList("dock-tab-label");
             e.Add(label);
+            // The close button (shown on the active and the hovered tab).
+            var close = new Element();
+            close.AddToClassList("dock-tab-close");
+            close.RegisterCallback<PointerDownEvent>(ev => ev.StopPropagation());
+            close.RegisterCallback<PointerUpEvent>(ev =>
+            {
+                ev.StopPropagation();
+                CloseTab(tab);
+            });
+            e.Add(close);
             e.RegisterCallback<PointerDownEvent>(ev =>
             {
                 if (ev.button == 1)
@@ -214,9 +277,17 @@ namespace HelixEditor.Docking
                     ev.StopPropagation();
                     return;
                 }
+                // The middle button closes it.
+                if (ev.button == 2)
+                {
+                    ev.StopPropagation();
+                    CloseTab(tab);
+                    return;
+                }
                 m_DragTab = tab;
                 m_DragFrom = e;
                 m_DragStart = new Vector2(ev.position.x, ev.position.y);
+                m_DragArea = area.tabs.Count == 1 ? area : null;
                 m_Dragging = false;
                 m_DragPointer = ev.pointerId;
                 e.CapturePointer(ev.pointerId);
@@ -227,10 +298,21 @@ namespace HelixEditor.Docking
                 if (m_DragTab != tab || m_DragFrom != e)
                     return;
                 Vector2 p = new Vector2(ev.position.x, ev.position.y);
-                if (!m_Dragging && (p - m_DragStart).magnitude > kDragStart)
+                if (!m_Dragging && (p - m_DragStart).magnitude > Metric("drag-threshold", 0.005f))
                     m_Dragging = true;
-                if (m_Dragging)
-                    ShowDrop(p);
+                if (!m_Dragging)
+                    return;
+                // The only tab of a floating window moves its window with the pointer (docking where it is dropped
+                // over another window's area).
+                if (MovesWindow(tab))
+                {
+                    Vector2 desktop = ToDesktop(p);
+                    Rect r = m_Container.rect;
+                    var moved = new Rect(desktop.x - m_DragStart.x, desktop.y - m_DragStart.y, r.width, r.height);
+                    m_Container.rect = moved;
+                    EditorApplication.SetDisplayRectInternal(m_Display, moved);
+                }
+                ShowDrop(p);
             });
             e.RegisterCallback<PointerUpEvent>(ev =>
             {
@@ -242,7 +324,7 @@ namespace HelixEditor.Docking
                 m_DragTab = null;
                 m_DragFrom = null;
                 m_Dragging = false;
-                m_Indicator.style.display = DisplayStyle.None;
+                DockManager.HideIndicators();
                 if (!dragged)
                 {
                     DockManager.WindowOf(tab)?.Focus();
@@ -258,6 +340,18 @@ namespace HelixEditor.Docking
             return e;
         }
 
+        // A tab's window closed (its tab goes with it), the layout saved.
+        static void CloseTab(string tab)
+        {
+            EditorWindow w = DockManager.WindowOf(tab);
+            if (w != null)
+                w.Close();
+            else
+                DockManager.layout.RemoveTab(tab);
+            DockManager.Changed();
+            DockManager.Saved();
+        }
+
         static string Kebab(string name)
         {
             var sb = new System.Text.StringBuilder();
@@ -270,8 +364,24 @@ namespace HelixEditor.Docking
             return sb.ToString();
         }
 
-        // The area under a point and where on it a tab would go (its edges' quarters, else its middle).
-        bool Target(Vector2 p, out DockArea area, out DropZone zone, out Rect rect, out int index)
+        bool Over(DockArea area, Vector2 p)
+        {
+            foreach (var (a, element, strip) in m_Areas)
+                if (a == area)
+                    return element.worldBound.Contains(p);
+            return false;
+        }
+
+        // A floating window of one area of one tab: its tab moves the window.
+        bool MovesWindow(string tab) =>
+            DockManager.osWindows && m_Container != null && m_Container.root is DockArea only && only.tabs.Count == 1 && only.tabs[0] == tab;
+
+        // A point of the view on the desktop and back (the view's display's place).
+        internal Vector2 ToDesktop(Vector2 p) => p + DockManager.Origin(m_Display);
+        internal Vector2 FromDesktop(Vector2 p) => p - DockManager.Origin(m_Display);
+
+        // The area under a point of the view and where on it a tab would go (its edges' quarters, else its middle).
+        internal bool Target(Vector2 p, out DockArea area, out DropZone zone, out Rect rect, out int index)
         {
             area = null;
             zone = DropZone.Center;
@@ -316,13 +426,14 @@ namespace HelixEditor.Docking
             return false;
         }
 
+        // The drop zone lit in the view under the pointer (any view); outside every area the container a tab would
+        // float in, when floating containers are drawn over the main view.
         void ShowDrop(Vector2 p)
         {
-            Rect root = m_Root.worldBound;
-            Rect r;
-            if (Target(p, out DockArea area, out DropZone zone, out Rect ar, out int index))
+            Vector2 desktop = ToDesktop(p);
+            if (DockManager.FindTarget(desktop, m_DragArea, out DockView view, out DockArea area, out DropZone zone, out Rect ar, out int index))
             {
-                r = zone switch
+                Rect r = zone switch
                 {
                     DropZone.Left => new Rect(ar.x, ar.y, ar.width * 0.5f, ar.height),
                     DropZone.Right => new Rect(ar.x + ar.width * 0.5f, ar.y, ar.width * 0.5f, ar.height),
@@ -330,9 +441,22 @@ namespace HelixEditor.Docking
                     DropZone.Bottom => new Rect(ar.x, ar.y + ar.height * 0.5f, ar.width, ar.height * 0.5f),
                     _ => ar,
                 };
+                DockManager.HideIndicators(view);
+                view.ShowIndicator(r);
+                return;
             }
-            else
-                r = new Rect(p.x - 150, p.y - 12, 300, 220);
+            DockManager.HideIndicators();
+            if (!DockManager.osWindows && DockManager.mainView != null)
+            {
+                Rect root = DockManager.mainView.root.worldBound;
+                Rect f = DockManager.mainView.FloatRect(DockManager.mainView.FromDesktop(desktop));
+                DockManager.mainView.ShowIndicator(new Rect(f.x + root.x, f.y + root.y, f.width, f.height));
+            }
+        }
+
+        internal void ShowIndicator(Rect r)
+        {
+            Rect root = m_Root.worldBound;
             m_Indicator.style.display = DisplayStyle.Flex;
             m_Indicator.style.left = r.x - root.x;
             m_Indicator.style.top = r.y - root.y;
@@ -340,13 +464,37 @@ namespace HelixEditor.Docking
             m_Indicator.style.height = r.height;
         }
 
+        internal void HideIndicator() => m_Indicator.style.display = DisplayStyle.None;
+
+        // Onto an area of any view; else out to float: a window of its own on the desktop (the only tab of a floating
+        // window moves its window), or a container over the main view.
         void Drop(string tab, Vector2 p)
         {
-            Rect root = m_Root.worldBound;
-            if (Target(p, out DockArea area, out DropZone zone, out _, out int index))
+            Vector2 desktop = ToDesktop(p);
+            DockArea own = m_DragArea;
+            m_DragArea = null;
+            if (DockManager.FindTarget(desktop, own, out _, out DockArea area, out DropZone zone, out _, out int index))
                 DockManager.DockTab(tab, area, zone, index);
+            else if (MovesWindow(tab) || (own != null && Over(own, p)))
+            {
+                // It moved with the pointer (a floating window's only tab), or back onto its own area: where it is.
+                DockManager.Saved();
+                return;
+            }
+            else if (DockManager.osWindows)
+            {
+                Rect at = new Rect(desktop.x - Metric("float-grab-x", 0), desktop.y - Metric("float-grab-y", 0), Metric("float-width", 0.3f),
+                                   Metric("float-height", 0.3f));
+                if (m_Container != null && m_Container.root is DockArea only && only.tabs.Count == 1 && only.tabs[0] == tab)
+                    DockManager.MoveFloating(m_Container, new Rect(at.x, at.y, m_Container.rect.width, m_Container.rect.height));
+                else
+                    DockManager.FloatTab(tab, at);
+            }
             else
-                DockManager.FloatTab(tab, new Rect(p.x - root.x - 150, p.y - root.y - 12, 300, 220));
+            {
+                Vector2 main = DockManager.mainView != null ? DockManager.mainView.FromDesktop(desktop) : p;
+                DockManager.FloatTab(tab, (DockManager.mainView ?? this).FloatRect(main));
+            }
             DockManager.Saved();
         }
 
@@ -374,7 +522,7 @@ namespace HelixEditor.Docking
                         DockManager.Saved();
                     });
             }
-            menu.DropDown(anchor.worldBound, m_Root, true);
+            menu.DropDown(anchor.worldBound, m_Root, DropdownMenuSizeMode.Auto);
         }
     }
 }

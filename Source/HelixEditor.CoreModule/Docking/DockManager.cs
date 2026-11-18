@@ -17,6 +17,10 @@ namespace HelixEditor.Docking
         static readonly Dictionary<string, EditorWindow> s_Windows = new();
         static DockView s_View;
         static bool s_Scanned;
+        // The floating containers' windows (where the host has windows of its own), and when the layout is saved after
+        // a window moved.
+        static readonly List<FloatingWindow> s_FloatingWindows = new();
+        static double s_SaveAt = -1;
 
         public static DockLayout layout => s_Layout;
 
@@ -87,8 +91,147 @@ namespace HelixEditor.Docking
         // The element the layout is drawn in (the shell's dock area).
         internal static Element viewRoot => s_View?.root;
 
-        /// <summary>The layout drawn again (its tree or a title changed).</summary>
-        public static void Changed() => s_View?.Build(s_Layout);
+        /// <summary>The layout drawn again (its tree or a title changed): the main view, and the floating containers'
+        /// windows (opened for new containers, closed for those gone).</summary>
+        public static void Changed()
+        {
+            SyncWindows();
+            s_View?.Build(s_Layout);
+            foreach (FloatingWindow w in s_FloatingWindows)
+                w.Build(s_Layout);
+        }
+
+        internal static DockView mainView => s_View;
+
+        // Floating containers in windows of their own: where the host has them.
+        internal static bool osWindows => EditorApplication.toolWindowsInternal;
+
+        internal static bool HasWindow(FloatingContainer f) => s_FloatingWindows.Exists(w => w.container == f);
+
+        static void SyncWindows()
+        {
+            if (s_View == null)
+                return;
+            for (int i = s_FloatingWindows.Count - 1; i >= 0; i--)
+                if (!s_Layout.floating.Contains(s_FloatingWindows[i].container))
+                {
+                    s_FloatingWindows[i].Close();
+                    s_FloatingWindows.RemoveAt(i);
+                }
+            if (!osWindows)
+                return;
+            foreach (FloatingContainer f in s_Layout.floating)
+                if (!HasWindow(f))
+                {
+                    FloatingWindow w = FloatingWindow.Open(f);
+                    if (w != null)
+                        s_FloatingWindows.Add(w);
+                }
+        }
+
+        /// <summary>Once a frame: the floating windows' moves and sizes into the layout (saved once they rest), a window
+        /// closed closing its tabs.</summary>
+        internal static void Tick()
+        {
+            bool moved = false;
+            List<FloatingContainer> closed = null;
+            foreach (FloatingWindow w in s_FloatingWindows)
+            {
+                moved |= w.Tick(s_Layout, out bool closeAsked);
+                if (closeAsked)
+                    (closed ??= new List<FloatingContainer>()).Add(w.container);
+            }
+            if (closed != null)
+            {
+                foreach (FloatingContainer f in closed)
+                    foreach (DockArea a in new List<DockArea>(AreasOf(f.root)))
+                        foreach (string tab in new List<string>(a.tabs))
+                        {
+                            if (WindowOf(tab) is EditorWindow ew)
+                                ew.Close();
+                            else
+                                s_Layout.RemoveTab(tab);
+                        }
+                Changed();
+                Saved();
+            }
+            if (moved)
+                s_SaveAt = EditorApplication.timeSinceStartup + 0.5;
+            if (s_SaveAt >= 0 && EditorApplication.timeSinceStartup >= s_SaveAt)
+            {
+                s_SaveAt = -1;
+                Saved();
+            }
+        }
+
+        static IEnumerable<DockArea> AreasOf(DockNode node)
+        {
+            if (node is DockArea a)
+                yield return a;
+            else if (node is DockSplit s)
+                foreach (DockNode c in s.children)
+                    foreach (DockArea x in AreasOf(c))
+                        yield return x;
+        }
+
+        /// <summary>A floating container moved and sized (its window with it).</summary>
+        internal static void MoveFloating(FloatingContainer f, Rect rect)
+        {
+            f.rect = rect;
+            Changed();
+        }
+
+        // A desktop point's view by place: the floating windows over the main one.
+        internal static Vector2 Origin(int display)
+        {
+            if (!osWindows)
+                return Vector2.zero;
+            // A floating window's: its container's rectangle (set at once as it moves; the display's comes a frame later).
+            foreach (FloatingWindow w in s_FloatingWindows)
+                if (w.display == display)
+                    return w.container.rect.position;
+            return EditorApplication.DisplayRectInternal(display).position;
+        }
+
+        internal static IEnumerable<DockView> Views()
+        {
+            for (int i = s_FloatingWindows.Count - 1; i >= 0; i--)
+                if (s_FloatingWindows[i].view != null)
+                    yield return s_FloatingWindows[i].view;
+            if (s_View != null)
+                yield return s_View;
+        }
+
+        // The area of any view under a desktop point (the rect in that view's space).
+        internal static bool FindTarget(Vector2 desktop, DockArea except, out DockView view, out DockArea area, out DropZone zone, out Rect rect, out int index)
+        {
+            foreach (DockView v in Views())
+            {
+                Vector2 local = v.FromDesktop(desktop);
+                Rect bounds = v.root.worldBound;
+                if (!bounds.Contains(local))
+                    continue;
+                // The area of a dragged only tab is no target of it: the views under it are.
+                if (v.Target(local, out area, out zone, out rect, out index) && area != except)
+                {
+                    view = v;
+                    return true;
+                }
+            }
+            view = null;
+            area = null;
+            zone = DropZone.Center;
+            rect = default;
+            index = -1;
+            return false;
+        }
+
+        internal static void HideIndicators(DockView except = null)
+        {
+            foreach (DockView v in Views())
+                if (v != except)
+                    v.HideIndicator();
+        }
 
         public static void Load(DockLayout layout)
         {
@@ -187,6 +330,8 @@ namespace HelixEditor.Docking
             s_Windows[tab] = w;
             if (s_Layout.AreaOf(tab) == null)
             {
+                if (w.m_Position.width <= 0 && s_View != null)
+                    w.m_Position = s_View.NewWindowRect();
                 Rect r = w.m_Position;
                 s_Layout.Float(tab, r);
                 w.m_Docked = false;

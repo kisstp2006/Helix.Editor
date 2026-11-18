@@ -7,13 +7,6 @@ namespace HelixEditor
     // their windows and systems come (the asset database, scenes, undo, play mode).
     internal static class DefaultMenus
     {
-        internal static void RegisterTitles()
-        {
-            string[] titles = { "File", "Edit", "Assets", "GameObject", "Component", "Window", "Help" };
-            for (int i = 0; i < titles.Length; i++)
-                EditorMenus.AddTitle(titles[i], i * 10);
-        }
-
         static bool Later() => false;
 
         [MenuItem("File/New Scene %n", false, 0)] static void NewScene() { }

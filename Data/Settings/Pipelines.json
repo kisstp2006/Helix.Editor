@@ -1,0 +1,9 @@
+{
+  "comment": "The render pipelines -pipeline names: a short name and its asset class (a script class below RenderPipelineAsset of a linked module; empty: no pipeline). Any asset class name works on the command line too.",
+  "default": "standard",
+  "pipelines": {
+    "standard": "HelixEngine.Rendering.Universal.UniversalRenderPipelineAsset",
+    "physical": "HelixEngine.Rendering.Physical.PhysicalRenderPipelineAsset",
+    "none": ""
+  }
+}

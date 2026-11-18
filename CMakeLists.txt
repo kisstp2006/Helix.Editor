@@ -28,6 +28,32 @@ if(HELIX_PLATFORM STREQUAL "windows" OR HELIX_PLATFORM STREQUAL "linux")
     target_include_directories(helix_editor PRIVATE "${editor_source}")
     target_compile_definitions(helix_editor PRIVATE "HELIX_EDITOR_DATA_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/Data\"")
 
+    # The engine's modules linked into the host (their C# bindings registered as it starts): the list is the build's,
+    # written into a registration table the host walks (Helix/Editor/Host/EditorModules.h).
+    set(editor_linked_modules HelixRenderPipelinesCore HelixRenderPipelinesStandard HelixRenderPipelinesPhysical HelixUI HelixCanvasUI)
+    set(editor_modules_decl "")
+    set(editor_modules_rows "")
+    foreach(module IN LISTS editor_linked_modules)
+        string(APPEND editor_modules_decl "extern \"C\" void HxBindings_${module}_Publish();
+")
+        string(APPEND editor_modules_rows "        {\"${module}\", &HxBindings_${module}_Publish},
+")
+    endforeach()
+    file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Generated/EditorModules.gen.cpp" CONTENT
+"// Written by Helix.Editor's CMakeLists.txt from the modules linked into the host.
+#include <Helix/Editor/Host/EditorModules.h>
+
+${editor_modules_decl}
+namespace helix::editor
+{
+    static const LinkedModule kLinkedModules[] = {
+${editor_modules_rows}    };
+
+    Span<const LinkedModule> LinkedModules() { return Span<const LinkedModule>(kLinkedModules, sizeof(kLinkedModules) / sizeof(kLinkedModules[0])); }
+}
+")
+    target_sources(helix_editor PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/Generated/EditorModules.gen.cpp")
+
     # The native module HelixEditor: its tagged headers bound to C#.
     helix_dependency_dir(editor_engine_dir Engine)
     helix_dependency_dir(editor_math_dir Math)
@@ -114,6 +140,10 @@ if(HELIX_PLATFORM STREQUAL "windows" OR HELIX_PLATFORM STREQUAL "linux")
                  COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:helix_editor>" "-DPROJECT=${CMAKE_CURRENT_SOURCE_DIR}/Tests/Projects/Empty"
                          "-DWORK=${CMAKE_CURRENT_BINARY_DIR}/csharp" "-DMETHOD=HelixEditor.Tests.EditorTests.Run"
                          -P "${CMAKE_CURRENT_SOURCE_DIR}/Tests/RunEditorTests.cmake")
+        add_test(NAME helix_editor_csharp_windowed
+                 COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:helix_editor>" "-DPROJECT=${CMAKE_CURRENT_SOURCE_DIR}/Tests/Projects/Empty"
+                         "-DWORK=${CMAKE_CURRENT_BINARY_DIR}/csharp-windowed" "-DMETHOD=HelixEditor.Tests.EditorTests.RunWindowed" "-DWINDOWED=1"
+                         -P "${CMAKE_CURRENT_SOURCE_DIR}/Tests/RunEditorTests.cmake")
         foreach(pipeline IN ITEMS standard physical)
             add_test(NAME helix_editor_shell_${pipeline}
                      COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:helix_editor>" "-DCOMPARE=$<TARGET_FILE:helix_editor_compare>"
@@ -124,7 +154,7 @@ if(HELIX_PLATFORM STREQUAL "windows" OR HELIX_PLATFORM STREQUAL "linux")
         # The .NET runtime is never unloaded: LeakSanitizer is told about its modules.
         if(HELIX_ENABLE_ASAN AND HELIX_PLATFORM STREQUAL "linux")
             helix_dependency_dir(editor_scripting_dir Scripting)
-            set_tests_properties(helix_editor_csharp helix_editor_shell_standard helix_editor_shell_physical PROPERTIES
+            set_tests_properties(helix_editor_csharp helix_editor_csharp_windowed helix_editor_shell_standard helix_editor_shell_physical PROPERTIES
                                  ENVIRONMENT "LSAN_OPTIONS=suppressions=${editor_scripting_dir}/Tests/Support/LeakSuppressions.txt")
         endif()
     endif()

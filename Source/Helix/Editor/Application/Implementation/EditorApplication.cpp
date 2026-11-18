@@ -1,6 +1,7 @@
 #include <Helix/Editor/Application/EditorApplication.h>
 
 #include <Helix/Editor/Shell/EditorMenus.h>
+#include <Helix/Engine/Screen/Display.h>
 #include <Helix/Platform/IO/FileSystem.h>
 #include <Helix/Platform/Window/Window.h>
 
@@ -14,6 +15,7 @@ namespace helix::editor
         {
             platform::Window* window = nullptr;
             String projectPath, applicationPath, dataPath, executeMethod;
+            EditorApplication::ToolWindowHost tools;
             bool playing = false, paused = false, stepAsked = false;
             bool quit = false;
             i32 quitCode = 0;
@@ -140,6 +142,39 @@ namespace helix::editor
     }
 
     void EditorApplication::Tick() { update().Invoke(); }
+
+    void EditorApplication::SetToolWindowHost(const ToolWindowHost& host) { S().tools = host; }
+    bool EditorApplication::toolWindowsInternal() { return S().tools.open != nullptr; }
+
+    i32 EditorApplication::OpenToolWindowInternal(StringView title, Rect rect)
+    {
+        const ToolWindowHost& t = S().tools;
+        return t.open ? t.open(t.user, title, rect) : -1;
+    }
+
+    void EditorApplication::CloseToolWindowInternal(i32 display)
+    {
+        const ToolWindowHost& t = S().tools;
+        if (t.close)
+            t.close(t.user, display);
+    }
+
+    bool EditorApplication::ToolWindowCloseRequestedInternal(i32 display)
+    {
+        const ToolWindowHost& t = S().tools;
+        return t.closeRequested && t.closeRequested(t.user, display);
+    }
+
+    Rect EditorApplication::DisplayRectInternal(i32 display)
+    {
+        const engine::DisplayState& d = engine::Displays::Get(display);
+        return Rect(f32(d.x), f32(d.y), f32(d.systemWidth), f32(d.systemHeight));
+    }
+
+    void EditorApplication::SetDisplayRectInternal(i32 display, Rect rect)
+    {
+        engine::Displays::Place(display, i32(rect.width), i32(rect.height), i32(rect.x), i32(rect.y));
+    }
 
     bool EditorApplication::QuitRequested(i32& code)
     {

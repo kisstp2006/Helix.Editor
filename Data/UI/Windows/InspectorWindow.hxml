@@ -1,0 +1,4 @@
+<HXML>
+  <!-- The Inspector: the selection's components. -->
+  <Element class="window-content inspector"><Label class="window-note" text="The selection's components come with step 4."/></Element>
+</HXML>

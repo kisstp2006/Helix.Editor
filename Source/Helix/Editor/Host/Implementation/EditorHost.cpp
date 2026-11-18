@@ -1,6 +1,7 @@
 #include <Helix/Editor/Host/EditorHost.h>
 
 #include <Helix/Editor/Application/EditorApplication.h>
+#include <Helix/Editor/Host/EditorModules.h>
 
 #include <Helix/Core/Logging/Log.h>
 #include <Helix/Core/Strings/Format.h>
@@ -11,18 +12,13 @@
 #include <Helix/Platform/IO/FileSystem.h>
 #include <Helix/Platform/Window/Window.h>
 #include <Helix/Player/Host/Player.h>
-#include <Helix/RenderPipelines/Physical/Pipeline/PhysicalRenderPipelineAsset.h>
-#include <Helix/RenderPipelines/Standard/Pipeline/UniversalRenderPipelineAsset.h>
+#include <Helix/Serialization/Json/Parser.h>
 #include <Helix/Scripting/Bindings/Interop.h>
 #include <Helix/UI/Core/Atoms.h>
 #include <Helix/UI/Engine/Panel.h>
+#include <Helix/UI/Engine/UIPanelSettings.h>
 #include <Helix/UI/Engine/UIView.h>
 
-extern "C" void HxBindings_HelixRenderPipelinesCore_Publish();
-extern "C" void HxBindings_HelixRenderPipelinesStandard_Publish();
-extern "C" void HxBindings_HelixRenderPipelinesPhysical_Publish();
-extern "C" void HxBindings_HelixUI_Publish();
-extern "C" void HxBindings_HelixCanvasUI_Publish();
 HX_BINDINGS_EXPORT void HxBindings_HelixEditor_Publish();
 
 namespace helix::editor
@@ -30,30 +26,6 @@ namespace helix::editor
     namespace
     {
         LogChannel EditorLog{"Editor"};
-
-        struct ModuleEntry
-        {
-            StringView name;
-            void (*publish)();
-        };
-        // The engine's modules the editor has (the pipelines among them: the editor renders with either).
-        constexpr ModuleEntry kModules[] = {
-            {"HelixRenderPipelinesCore", &HxBindings_HelixRenderPipelinesCore_Publish},
-            {"HelixRenderPipelinesStandard", &HxBindings_HelixRenderPipelinesStandard_Publish},
-            {"HelixRenderPipelinesPhysical", &HxBindings_HelixRenderPipelinesPhysical_Publish},
-            {"HelixUI", &HxBindings_HelixUI_Publish},
-            {"HelixCanvasUI", &HxBindings_HelixCanvasUI_Publish},
-            {"HelixEditor", &HxBindings_HelixEditor_Publish},
-        };
-
-        struct PipelineEntry
-        {
-            StringView name;
-            engine::ScriptableObject* (*create)();
-        };
-        engine::ScriptableObject* CreateStandard() { return rendering::universal::UniversalRenderPipelineAsset::Create(); }
-        engine::ScriptableObject* CreatePhysical() { return rendering::physical::PhysicalRenderPipelineAsset::Create(); }
-        constexpr PipelineEntry kPipelines[] = {{"standard", &CreateStandard}, {"physical", &CreatePhysical}, {"none", nullptr}};
 
         bool Register(StringView name, void (*publish)())
         {
@@ -63,6 +35,38 @@ namespace helix::editor
                 return true;
             HX_LOG_ERROR(EditorLog, "The module {} did not register: {}", name, error);
             return false;
+        }
+
+        // The pipeline a name stands for: a short name of the data folder's Settings/Pipelines.json (its default when
+        // none is given), else an asset class name. Answers false for an unknown name; an empty class is no pipeline.
+        bool PipelineClass(StringView dataFolder, StringView name, String& shortName, String& className)
+        {
+            String path = platform::JoinPath(dataFolder, "Settings/Pipelines.json");
+            Array<u8> bytes;
+            serialization::json::Tree tree;
+            String error;
+            if (!platform::ReadFile(path, bytes) ||
+                !serialization::json::Parse(StringView(reinterpret_cast<const char*>(bytes.Data()), bytes.Size()), tree, error))
+            {
+                HX_LOG_ERROR(EditorLog, "The pipelines could not be read from '{}' {}", path, error);
+                return false;
+            }
+            u32 table = tree.Find(tree.root, "pipelines");
+            shortName = String(name);
+            if (shortName.Empty())
+            {
+                u32 d = tree.Find(tree.root, "default");
+                shortName = tree.IsString(d) ? String(tree.Text(d)) : String();
+            }
+            u32 entry = tree.IsObject(table) ? tree.Find(table, shortName.View()) : serialization::json::kNoNode;
+            if (tree.IsString(entry))
+            {
+                className = String(tree.Text(entry));
+                return true;
+            }
+            // Not a short name: an asset class by name.
+            className = shortName;
+            return !className.Empty();
         }
 
         // The shader assemblies beside the executable, loaded as assets.
@@ -84,12 +88,17 @@ namespace helix::editor
             return source;
         }
 
-        // The window's frame: an element of the shell with the class editor-caption under the point is the caption.
-        platform::WindowHitTest HitTest(void*, i32 x, i32 y)
+        // A window's frame (the main window's, a floating window's: its display as the user): an element of a view of
+        // that display with the class editor-caption under the point is the caption.
+        platform::WindowHitTest HitTest(void* user, i32 x, i32 y)
         {
             static const ui::Atom caption = ui::Intern("editor-caption");
+            i32 display = i32(intptr_t(user));
             for (ui::UIView* view : ui::UIView::Views())
             {
+                ui::UIPanelSettings* settings = view->panelSettings();
+                if ((settings ? settings->targetDisplay() : 0) != display)
+                    continue;
                 ui::ElementHandle e = view->Pick(Vector2(f32(x), f32(y)));
                 if (!e.IsValid())
                     continue;
@@ -134,15 +143,7 @@ namespace helix::editor
                 else if (a == "-executeMethod")
                     out.executeMethod = String(v);
                 else
-                {
-                    bool known = false;
-                    for (const PipelineEntry& p : kPipelines)
-                        known = known || p.name == v;
-                    if (known)
-                        out.pipeline = String(v);
-                    else
-                        errors.Push(Format("-pipeline takes standard, physical or none, not '{}'", v));
-                }
+                    out.pipeline = String(v);
                 continue;
             }
             out.playerArgs.Push(String(a));
@@ -184,9 +185,11 @@ namespace helix::editor
             options.managedFolder = managed;
         options.customFrame = !options.batchMode;
 
+        // The linked engine modules (the build's list), then the editor's own.
         bool registered = true;
-        for (const ModuleEntry& m : kModules)
+        for (const LinkedModule& m : LinkedModules())
             registered = Register(m.name, m.publish) && registered;
+        registered = Register("HelixEditor", &HxBindings_HelixEditor_Publish) && registered;
         if (!registered)
             return 1;
 
@@ -199,22 +202,45 @@ namespace helix::editor
         }
         platform::Window* window = run.player.Window();
         if (window)
+        {
             window->SetHitTest(&HitTest, nullptr);
+            // Floating windows: tool windows of the player, framed by the editor too.
+            EditorApplication::ToolWindowHost tools;
+            tools.user = &run.player;
+            tools.open = [](void* user, StringView title, Rect rect) {
+                auto* player = static_cast<player::Player*>(user);
+                i32 display = player->OpenToolWindow({.title = title, .x = i32(rect.x), .y = i32(rect.y), .width = i32(rect.width), .height = i32(rect.height)});
+                if (platform::Window* w = player->DisplayWindow(display))
+                    w->SetHitTest(&HitTest, reinterpret_cast<void*>(intptr_t(display)));
+                return display;
+            };
+            tools.close = [](void* user, i32 display) { static_cast<player::Player*>(user)->CloseToolWindow(display); };
+            tools.closeRequested = [](void* user, i32 display) {
+                platform::Window* w = static_cast<player::Player*>(user)->DisplayWindow(display);
+                return w && w->CloseRequested();
+            };
+            EditorApplication::SetToolWindowHost(tools);
+        }
         EditorApplication::SetHost(window, editor.projectPath.View(), platform::ExecutablePath().View());
         EditorApplication::SetDataPath(options.dataFolder.View());
         EditorApplication::SetExecuteMethod(editor.executeMethod.View());
         engine::FolderAssetSource* shaders = LoadShaders();
+        String pipelineName, pipelineClass;
         engine::ScriptableObject* asset = nullptr;
-        for (const PipelineEntry& p : kPipelines)
-            if (p.name == editor.pipeline.View() && p.create)
-                asset = p.create();
+        if (PipelineClass(options.dataFolder.View(), editor.pipeline.View(), pipelineName, pipelineClass) && !pipelineClass.Empty())
+        {
+            asset = engine::ScriptableObject::CreateInstanceByName(pipelineClass.View());
+            if (!asset)
+                HX_LOG_ERROR(EditorLog, "-pipeline: no pipeline asset class '{}' among the linked modules.", pipelineClass);
+        }
         if (asset)
             engine::GraphicsSettings::SetDefaultRenderPipeline(asset);
-        HX_LOG_INFO(EditorLog, "Helix Editor on '{}' ({} pipeline).", editor.projectPath, editor.pipeline);
+        HX_LOG_INFO(EditorLog, "Helix Editor on '{}' ({} pipeline).", editor.projectPath, pipelineName.Empty() ? StringView("no") : pipelineName.View());
         platform::RunMainLoop(&RunFrame, &run);
         i32 code = run.code ? run.code : run.player.ExitCode();
         engine::GraphicsSettings::SetDefaultRenderPipeline(nullptr);
         EditorApplication::SetHost(nullptr, editor.projectPath.View(), platform::ExecutablePath().View());
+        EditorApplication::SetToolWindowHost({});
         run.player.Shutdown();
         delete shaders;
         return code;

@@ -22,12 +22,16 @@ namespace helix::editor
         {
             String name;
             i32 order = 0;
+            // Made by an item (not added by AddTitle): takes the new titles' order.
+            bool fromItem = false;
         };
 
         struct Registry
         {
             Array<Item> items;
             Array<Title> titles;
+            // The order of titles not added (after the added ones unless a mode says where).
+            i32 newTitleOrder = 1000;
             u32 version = 1;
             u32 sequence = 0;
             bool validated = true;
@@ -70,10 +74,20 @@ namespace helix::editor
             if (t.name.View() == name)
             {
                 t.order = order;
+                t.fromItem = false;
                 Changed();
                 return;
             }
-        R().titles.Push({String(name), order});
+        R().titles.Push({String(name), order, false});
+        Changed();
+    }
+
+    void EditorMenus::SetNewTitleOrderInternal(i32 order)
+    {
+        R().newTitleOrder = order;
+        for (Title& t : R().titles)
+            if (t.fromItem)
+                t.order = order;
         Changed();
     }
 
@@ -91,13 +105,13 @@ namespace helix::editor
         item->shortcut = String(shortcut);
         item->functions = functions;
         item->managed = false;
-        // A title not registered comes after the registered ones, in the order its first item came.
+        // A title not registered takes the new titles' order; among them the order its first item came.
         StringView head = Head(path);
         bool known = false;
         for (const Title& t : R().titles)
             known = known || t.name.View() == head;
         if (!known)
-            R().titles.Push({String(head), 1000 + i32(R().titles.Size())});
+            R().titles.Push({String(head), R().newTitleOrder, true});
         Changed();
     }
 

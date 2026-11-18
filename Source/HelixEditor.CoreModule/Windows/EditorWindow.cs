@@ -6,7 +6,7 @@ using HelixEngine.UI;
 namespace HelixEditor
 {
     /// <summary>A window of the editor: docked in a dock area of the main window or floating. Its content is its
-    /// rootElement (the retained UI); OnGui content comes with the ImguiContainer (open).</summary>
+    /// rootElement (the retained UI) and, when its class has OnGui, the immediate GUI drawn by an ImguiContainer in it.</summary>
     public abstract class EditorWindow : ScriptableObject
     {
         static readonly List<EditorWindow> s_Windows = new();
@@ -14,7 +14,9 @@ namespace HelixEditor
 
         GuiContent m_TitleContent;
         Element m_Root;
-        internal Rect m_Position = new Rect(100, 100, 400, 300);
+        ImguiContainer m_Gui;
+        // Unset (zero) until given: a floating window then takes the skin's place for a new window.
+        internal Rect m_Position;
         internal bool m_Docked, m_Maximized, m_Shown;
 
         /// <summary>The window's title on its tab.</summary>
@@ -38,6 +40,16 @@ namespace HelixEditor
                 {
                     m_Root = new Element();
                     m_Root.AddToClassList("editor-window-root");
+                    // A window with OnGui draws it in an ImguiContainer under the rest of its content.
+                    var onGui = GetType().GetMethod("OnGui", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public |
+                                                    System.Reflection.BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+                    if (onGui != null)
+                    {
+                        var handler = (Action)Delegate.CreateDelegate(typeof(Action), this, onGui);
+                        m_Gui = new ImguiContainer(handler) { name = "onGui" };
+                        m_Gui.AddToClassList("editor-window-gui");
+                        m_Root.Add(m_Gui);
+                    }
                 }
                 return m_Root;
             }
@@ -85,6 +97,7 @@ namespace HelixEditor
             s_Windows.Remove(this);
             if (s_Focused == this)
                 s_Focused = null;
+            m_Gui?.Dispose();
             // OnDisable and OnDestroy run as it is destroyed (a ScriptableObject's messages).
             DestroyImmediate(this);
         }

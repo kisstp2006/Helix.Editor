@@ -1,0 +1,5 @@
+{
+  "comment": "The editor's default mode: the main menu's titles in order; a title of a plugin's menu items that is not listed goes before newMenusBefore.",
+  "menus": ["File", "Edit", "Assets", "GameObject", "Component", "Window", "Help"],
+  "newMenusBefore": "Window"
+}

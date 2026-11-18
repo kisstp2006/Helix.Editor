@@ -44,6 +44,18 @@ namespace HelixEditor.Tests
             s_Steps.Enqueue(("dragging a splitter", DragSplitter));
             s_Steps.Enqueue(("the window requests", WindowRequests));
             s_Steps.Enqueue(("the presets", Presets));
+            s_Steps.Enqueue(("the mode's menu titles", ModeTitles));
+            // The menu bar is made again and laid out.
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("opening a menu of the menu bar", OpenMenu));
+            s_Steps.Enqueue(("the menu", MenuOpened));
+            s_Steps.Enqueue(("its submenu", SubmenuOpened));
+            s_Steps.Enqueue(("closing a tab", CloseTabByButton));
+            s_Steps.Enqueue(("after closing a tab", AfterCloseTab));
+            s_Steps.Enqueue(("an only tab onto its own area", OwnAreaDrop));
+            s_Steps.Enqueue(("after it", AfterOwnAreaDrop));
+            s_Steps.Enqueue(("a window with OnGui", OpenGuiWindow));
+            s_Steps.Enqueue(("its OnGui drawn", GuiWindowDrawn));
             EditorApplication.update += Next;
         }
 
@@ -68,6 +80,131 @@ namespace HelixEditor.Tests
                 Debug.LogError($"FAILED: {name} threw {e}");
             }
             Debug.Log($"{(s_Failures == before ? "ok" : "FAILED")}: {name}");
+        }
+
+        /// <summary>The tests of floating windows in windows of their own (the editor with its window, no batch mode).</summary>
+        public static void RunWindowed()
+        {
+            s_Steps.Enqueue(("windows of their own", () => Check(DockManager.osWindows, "the host has tool windows")));
+            s_Steps.Enqueue(("floating a tab", FloatInWindow));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("its window", FloatingWindowShown));
+            s_Steps.Enqueue(("its only tab moves it", DragOnlyTab));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("after moving it by its tab", AfterDragOnlyTab));
+            s_Steps.Enqueue(("the window moved", MoveFloatingWindow));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("after the move", AfterMoveFloatingWindow));
+            s_Steps.Enqueue(("dragging its tab onto the main window", DragBackToMain));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("docked again", DockedBack));
+            EditorApplication.update += Next;
+        }
+
+        static FloatingContainer s_Floating;
+
+        static void FloatInWindow()
+        {
+            DockManager.LoadPreset("Default");
+            // Beside the main window (dragged by its tab it docks only over another window's area).
+            Rect main = EditorApplication.DisplayRectInternal(0);
+            DockManager.FloatTab("InspectorWindow", new Rect(main.x + main.width + 40, main.y + 140, 360, 260));
+            s_Floating = DockManager.layout.ContainerOf(DockManager.layout.AreaOf("InspectorWindow"));
+            Check(s_Floating != null && DockManager.HasWindow(s_Floating), "the container has a window of its own");
+            Check(Root.FindAll(null, "dock-floating").Count == 0, "not drawn over the main view");
+        }
+
+        static DockView FloatingView()
+        {
+            foreach (DockView v in DockManager.Views())
+                if (v.container == s_Floating)
+                    return v;
+            return null;
+        }
+
+        static void FloatingWindowShown()
+        {
+            DockView v = FloatingView();
+            Check(v != null && v.display > 0, "a view on a display of its own");
+            if (v == null)
+                return;
+            Rect r = EditorApplication.DisplayRectInternal(v.display);
+            Check(r.width == 360 && r.height == 260, $"the window's size ({r.width} x {r.height})");
+            Check(v.root.FindAll(null, "dock-tab").Count == 1, "the inspector's tab in it");
+            Check(v.root.Find(null, "dock-tab-strip")?.ClassListContains("editor-caption") == true, "its strip moves the window");
+            Check(HelixEngine.Display.displays.Length > v.display && HelixEngine.Display.displays[v.display].active, "an active display");
+        }
+
+        static Rect s_BeforeTabDrag;
+
+        static void DragOnlyTab()
+        {
+            DockView v = FloatingView();
+            Element tab = v?.root.Find(null, "dock-tab");
+            if (tab == null)
+            {
+                Check(false, "the floating window's tab");
+                return;
+            }
+            s_BeforeTabDrag = s_Floating.rect;
+            Vector2 from = Center(tab.worldBound);
+            // The window goes with the pointer: after the move the pointer is where it took the tab, in the window's
+            // space; no other area under it, nothing docks.
+            Send<PointerDownEvent>(tab, from);
+            Send<PointerMoveEvent>(tab, from + new Vector2(40, 30));
+            Send<PointerUpEvent>(tab, from);
+        }
+
+        static void AfterDragOnlyTab()
+        {
+            Check(DockManager.HasWindow(s_Floating) && DockManager.layout.floating.Contains(s_Floating), "still a floating window");
+            Check(Mathf.Abs(s_Floating.rect.x - s_BeforeTabDrag.x - 40) < 1 && Mathf.Abs(s_Floating.rect.y - s_BeforeTabDrag.y - 30) < 1,
+                  $"moved with the pointer ({s_Floating.rect.x - s_BeforeTabDrag.x}, {s_Floating.rect.y - s_BeforeTabDrag.y})");
+        }
+
+        static Rect s_MovedTo;
+
+        static void MoveFloatingWindow()
+        {
+            DockView v = FloatingView();
+            if (v == null)
+                return;
+            Rect r = EditorApplication.DisplayRectInternal(v.display);
+            s_MovedTo = new Rect(r.x + 30, r.y + 20, 380, 280);
+            // As the system would: the window moved and sized.
+            EditorApplication.SetDisplayRectInternal(v.display, s_MovedTo);
+        }
+
+        static void AfterMoveFloatingWindow()
+        {
+            Check(s_Floating.rect == s_MovedTo, $"the container follows its window ({s_Floating.rect.x}, {s_Floating.rect.y}, {s_Floating.rect.width}, {s_Floating.rect.height})");
+        }
+
+        static void DragBackToMain()
+        {
+            DockView v = FloatingView();
+            if (v == null)
+                return;
+            Element tab = v.root.Find(null, "dock-tab");
+            Element hierarchy = AreaElement("HierarchyWindow");
+            Check(tab != null && hierarchy != null, "the tab and the hierarchy's area");
+            if (tab == null || hierarchy == null)
+                return;
+            // The hierarchy's middle on the desktop, in the floating window's space; the window goes with the pointer, so
+            // when it is up the pointer is where it took the tab, in the window's space.
+            Vector2 desktop = DockManager.mainView.ToDesktop(Center(hierarchy.worldBound));
+            Vector2 from = Center(tab.worldBound);
+            Send<PointerDownEvent>(tab, from);
+            Send<PointerMoveEvent>(tab, v.FromDesktop(desktop));
+            Send<PointerUpEvent>(tab, from);
+        }
+
+        static void DockedBack()
+        {
+            DockArea area = DockManager.layout.AreaOf("InspectorWindow");
+            Check(area != null && area == DockManager.layout.AreaOf("HierarchyWindow"), "docked with the hierarchy");
+            Check(DockManager.layout.floating.Count == 0 && !DockManager.HasWindow(s_Floating), "the floating window went");
+            Check(FloatingView() == null, "no view of it");
         }
 
         // ---------------------------------------------------------------------------------- the model
@@ -399,6 +536,193 @@ namespace HelixEditor.Tests
             scene.maximized = false;
             Check(Root.FindAll(null, "dock-area").Count > 1, "all areas again");
             Check(DockManager.WindowTypes() is IEnumerable<string> types && new List<string>(types).Contains("HierarchyWindow"), "the window types");
+        }
+
+        // ------------------------------------------------------------------------------------ menus, tabs
+
+        static Element PanelRoot => Root.panel.visualTree;
+
+        static Element MenuTitle(string title)
+        {
+            foreach (Label l in PanelRoot.FindAll<Label>(null, "menu-title"))
+                if (l.text == title)
+                    return l;
+            return null;
+        }
+
+        static List<Element> MenuBoxes() => PanelRoot.FindAll(null, GenericDropdownMenu.containerOuterHssClassName);
+
+        static Element MenuItem(Element box, string label)
+        {
+            foreach (Element item in box.FindAll(null, GenericDropdownMenu.itemHssClassName))
+                if (item.Find<Label>(null, GenericDropdownMenu.labelHssClassName)?.text == label)
+                    return item;
+            return null;
+        }
+
+        static void ModeTitles()
+        {
+            var titles = new List<string>(EditorMenus.TitlesInternal());
+            Equal("File Edit Assets GameObject Component Window Help", string.Join(" ", titles), "the default mode's titles");
+            // A plugin's new title goes before Window (the mode's newMenusBefore), a second one after the first.
+            Menu.AddMenuItem("Tools/Helix Test", "", false, 0, () => { }, null);
+            Menu.AddMenuItem("Plugins/Helix Test", "", false, 0, () => { }, null);
+            titles = new List<string>(EditorMenus.TitlesInternal());
+            Equal("File Edit Assets GameObject Component Tools Plugins Window Help", string.Join(" ", titles), "new titles before Window");
+            Menu.RemoveMenuItem("Tools/Helix Test");
+            Menu.RemoveMenuItem("Plugins/Helix Test");
+            titles = new List<string>(EditorMenus.TitlesInternal());
+            Check(!titles.Contains("Tools") && !titles.Contains("Plugins"), "titles without items do not show");
+        }
+
+        static void OpenMenu()
+        {
+            Element title = MenuTitle("GameObject");
+            Check(title != null, "the GameObject title");
+            if (title != null)
+                Send<PointerDownEvent>(title, Center(title.worldBound));
+        }
+
+        static void MenuOpened()
+        {
+            List<Element> boxes = MenuBoxes();
+            Equal(1, boxes.Count, "one menu open");
+            if (boxes.Count == 0)
+                return;
+            Rect box = boxes[0].worldBound, title = MenuTitle("GameObject").worldBound;
+            Check(box.width > title.width, $"the menu is wider than its title ({box.width} against {title.width})");
+            Check(System.Math.Abs(box.x - title.x) < 1, "under its title");
+            Element create = MenuItem(boxes[0], "Create Empty");
+            Check(create?.Find<Label>(null, "helix-base-dropdown__shortcut") != null, "the shortcut in a column of its own");
+            Element sub = MenuItem(boxes[0], "3D Object");
+            Check(sub != null && sub.ClassListContains("helix-base-dropdown__submenu"), "3D Object is a submenu");
+            Check(MenuItem(boxes[0], "Cube") == null && MenuItem(boxes[0], "3D Object/Cube") == null, "its items are not in the menu");
+            if (sub != null)
+                Send<PointerEnterEvent>(sub, Center(sub.worldBound));
+        }
+
+        static void SubmenuOpened()
+        {
+            List<Element> boxes = MenuBoxes();
+            Equal(2, boxes.Count, "the submenu opened");
+            if (boxes.Count == 2)
+            {
+                Check(MenuItem(boxes[1], "Cube") != null, "Cube in the submenu");
+                Check(boxes[1].worldBound.x >= boxes[0].worldBound.x + boxes[0].worldBound.width - 12, "beside its parent");
+            }
+            // Escape closes them all.
+            Element menu = PanelRoot.Find(null, GenericDropdownMenu.hssClassName);
+            if (menu != null)
+                Send<PointerDownEvent>(menu, new Vector2(1, PanelRoot.worldBound.height - 1));
+            Equal(0, MenuBoxes().Count, "a press outside closes the menu");
+        }
+
+        static void CloseTabByButton()
+        {
+            DockManager.LoadPreset("Default");
+            Element tab = TabElement("GameView");
+            Element close = tab?.Find(null, "dock-tab-close");
+            Check(close != null, "the tab's close button");
+            if (close == null)
+                return;
+            Send<PointerDownEvent>(close, Center(close.worldBound));
+            Send<PointerUpEvent>(close, Center(close.worldBound));
+            Check(DockManager.layout.AreaOf("GameView") == null, "the closed tab is out");
+            // The middle button closes the console.
+            Element console = TabElement("ConsoleWindow");
+            if (console != null)
+                Send<PointerDownEvent>(console, Center(console.worldBound), 2);
+        }
+
+        static void AfterCloseTab()
+        {
+            Check(!EditorWindow.HasOpenInstances<GameView>(), "the game view closed");
+            Check(DockManager.layout.AreaOf("ConsoleWindow") == null && !EditorWindow.HasOpenInstances<ConsoleWindow>(), "the middle button closed the console");
+            // The pointer over an area makes its window mouseOverWindow.
+            Element area = AreaElement("InspectorWindow");
+            if (area != null)
+                Send<PointerEnterEvent>(area, Center(area.worldBound));
+            Check(EditorWindow.mouseOverWindow is InspectorWindow, "mouseOverWindow");
+        }
+
+        static string s_LayoutBefore;
+
+        static void OwnAreaDrop()
+        {
+            DockManager.LoadPreset("Default");
+            s_LayoutBefore = DockManager.layout.Write();
+            Element tab = TabElement("HierarchyWindow"), area = AreaElement("HierarchyWindow");
+            if (tab == null || area == null)
+            {
+                Check(false, "the hierarchy's tab and area");
+                return;
+            }
+            Rect r = area.worldBound;
+            // Onto its own area's bottom edge: no target of its own tab.
+            Drag(tab, Center(tab.worldBound), new Vector2(r.x + r.width * 0.5f, r.y + r.height * 0.9f));
+        }
+
+        static void AfterOwnAreaDrop()
+        {
+            Equal(s_LayoutBefore, DockManager.layout.Write(), "the layout as it was");
+            Check(DockManager.layout.floating.Count == 0, "nothing floats");
+        }
+
+        // A window whose content is immediate GUI.
+        public sealed class TestGuiWindow : EditorWindow
+        {
+            internal static int s_Repaints;
+            internal static bool s_Pressed;
+
+            void OnGui()
+            {
+                if (Event.current.type == EventType.Repaint)
+                    s_Repaints++;
+                if (Gui.Button(new Rect(4, 4, 120, 20), "Press"))
+                    s_Pressed = true;
+            }
+        }
+
+        static void OpenGuiWindow()
+        {
+            TestGuiWindow w = EditorWindow.GetWindow<TestGuiWindow>();
+            Check(w.rootElement.Find<ImguiContainer>() != null, "an ImguiContainer for OnGui");
+        }
+
+        static void GuiWindowDrawn()
+        {
+            Check(TestGuiWindow.s_Repaints > 0, "OnGui drawn in the panel");
+            var c = EditorWindow.GetWindow<TestGuiWindow>().rootElement.Find<ImguiContainer>();
+            if (c != null)
+            {
+                Rect r = c.worldBound;
+                var p = new Vector2(r.x + 20, r.y + 12);
+                Send<PointerDownEvent>(c, p);
+                Send<PointerUpEvent>(c, p);
+            }
+            Check(TestGuiWindow.s_Pressed, "its button pressed by the pointer");
+            EditorWindow.GetWindow<TestGuiWindow>().Close();
+            Check(!EditorWindow.HasOpenInstances<TestGuiWindow>(), "closed");
+        }
+
+        // For a screenshot of the menu (-executeMethod with -frames and -screenshot): the GameObject menu and its
+        // 3D Object submenu open.
+        public static void ShowMenus()
+        {
+            int frame = 0;
+            EditorApplication.update += () =>
+            {
+                frame++;
+                if (frame == 1)
+                    OpenMenu();
+                else if (frame == 2)
+                {
+                    List<Element> boxes = MenuBoxes();
+                    Element sub = boxes.Count > 0 ? MenuItem(boxes[0], "3D Object") : null;
+                    if (sub != null)
+                        Send<PointerEnterEvent>(sub, Center(sub.worldBound));
+                }
+            };
         }
 
         static void Presets()

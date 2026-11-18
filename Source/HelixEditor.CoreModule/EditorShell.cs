@@ -33,7 +33,7 @@ namespace HelixEditor
             m_Root = GetComponent<UIView>()?.rootElement;
             if (m_Root == null)
                 return;
-            DefaultMenus.RegisterTitles();
+            EditorMode.Apply("Default");
             m_Title = m_Root.Find<Label>("title");
             m_Status = m_Root.Find<Label>("status-message");
             m_MenuBar = m_Root.Find("menu-bar");
@@ -81,6 +81,7 @@ namespace HelixEditor
             if (m_Root == null)
                 return;
             Rebuild();
+            DockManager.Tick();
             EditorWindow.UpdateAll();
             bool maximized = EditorApplication.IsWindowMaximizedInternal();
             if (maximized != m_Maximized && m_Maximize != null)
@@ -169,7 +170,7 @@ namespace HelixEditor
             }
             menu.AddSeparator("");
             menu.AddItem("Save Layout", false, SaveLayout);
-            menu.DropDown(anchor, s_Shell.m_Root, true);
+            menu.DropDown(anchor, s_Shell.m_Root, DropdownMenuSizeMode.Auto);
         }
 
         // ------------------------------------------------------------------------------------------- menus
@@ -204,7 +205,7 @@ namespace HelixEditor
                     AddEntries(menu, entry.path, prefix + entry.name + "/");
                     continue;
                 }
-                string name = prefix + entry.name + (string.IsNullOrEmpty(entry.shortcut) ? "" : "    " + entry.shortcut);
+                string name = prefix + entry.name + (string.IsNullOrEmpty(entry.shortcut) ? "" : "	" + entry.shortcut);
                 string itemPath = entry.path;
                 if (entry.enabled)
                     menu.AddItem(name, entry.isChecked, () => EditorMenus.Execute(itemPath));
@@ -219,7 +220,8 @@ namespace HelixEditor
             AddEntries(menu, title, "");
             label.AddToClassList("open");
             Rect r = label.worldBound;
-            menu.DropDown(new Rect(r.x, r.y, r.width, r.height), m_Root, true);
+            // As wide as its items, at least its title's width.
+            menu.DropDown(new Rect(r.x, r.y, r.width, r.height), m_Root, DropdownMenuSizeMode.Auto);
             label.schedule.Execute(() => label.RemoveFromClassList("open")).StartingIn(150);
         }
 
