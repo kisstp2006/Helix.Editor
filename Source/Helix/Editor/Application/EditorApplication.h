@@ -42,6 +42,9 @@ namespace helix::editor
         // The editor's data folder (its shell, skin, layouts).
         HX_PROPERTY(ReadOnly, Internal) static String editorDataPathInternal();
         static void SetDataPath(StringView path);
+        // -executeMethod's method (empty without one); the host has the process's arguments on every platform.
+        HX_PROPERTY(ReadOnly, Internal) static String executeMethodInternal();
+        static void SetExecuteMethod(StringView method);
 
         // The main window's frame (the shell's caption buttons and title).
         HX_FUNCTION(Internal) static void MinimizeWindowInternal();

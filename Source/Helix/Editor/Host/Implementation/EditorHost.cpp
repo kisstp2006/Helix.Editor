@@ -121,7 +121,7 @@ namespace helix::editor
         for (usize i = 0; i < args.Size(); i++)
         {
             StringView a = args[i];
-            if (a == "-projectPath" || a == "-pipeline")
+            if (a == "-projectPath" || a == "-pipeline" || a == "-executeMethod")
             {
                 if (i + 1 >= args.Size())
                 {
@@ -131,6 +131,8 @@ namespace helix::editor
                 StringView v = args[++i];
                 if (a == "-projectPath")
                     out.projectPath = String(v);
+                else if (a == "-executeMethod")
+                    out.executeMethod = String(v);
                 else
                 {
                     bool known = false;
@@ -200,6 +202,7 @@ namespace helix::editor
             window->SetHitTest(&HitTest, nullptr);
         EditorApplication::SetHost(window, editor.projectPath.View(), platform::ExecutablePath().View());
         EditorApplication::SetDataPath(options.dataFolder.View());
+        EditorApplication::SetExecuteMethod(editor.executeMethod.View());
         engine::FolderAssetSource* shaders = LoadShaders();
         engine::ScriptableObject* asset = nullptr;
         for (const PipelineEntry& p : kPipelines)

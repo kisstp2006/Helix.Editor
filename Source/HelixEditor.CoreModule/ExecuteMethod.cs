@@ -20,20 +20,20 @@ namespace HelixEditor
 #pragma warning restore CA2255
         internal static void Init() => ScriptBridge.WhenBindingsLoaded(Start);
 
-        static void Start()
-        {
-            string[] args = Environment.GetCommandLineArgs();
-            for (int i = 0; i + 1 < args.Length; i++)
-                if (args[i] == "-executeMethod")
-                    s_Method = args[i + 1];
-            if (s_Method != null)
-                EditorApplication.update += Tick;
-        }
+        // The method is the host's (a hosted runtime's own arguments are not the process's on every platform), known
+        // once the player started: read on the first update.
+        static void Start() => EditorApplication.update += Tick;
 
         static int s_Frames;
 
         static void Tick()
         {
+            s_Method ??= EditorApplication.executeMethodInternal;
+            if (string.IsNullOrEmpty(s_Method))
+            {
+                EditorApplication.update -= Tick;
+                return;
+            }
             // After the shell's first frames (its Start and the layout).
             if (s_Done || ++s_Frames < 3)
                 return;

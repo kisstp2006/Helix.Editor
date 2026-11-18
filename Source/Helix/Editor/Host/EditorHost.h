@@ -9,6 +9,7 @@
 // assemblies. Its own arguments:
 //   -projectPath <folder>  the project (the current folder by default)
 //   -pipeline <name>       the pipeline that renders (standard, physical or none; standard by default)
+//   -executeMethod <Namespace.Class.Method>  a static C# method run once the shell is up
 // Every argument of the player works too (-batchmode, -frames, -screenshot, -force-glcore, -force-device-index ...).
 namespace helix::editor
 {
@@ -16,6 +17,7 @@ namespace helix::editor
     {
         String projectPath;
         String pipeline = String("standard");
+        String executeMethod;
         Array<String> playerArgs = Array<String>();
     };
     bool ParseEditorArgs(Span<const StringView> args, EditorOptions& out, Array<String>& errors);

@@ -121,5 +121,11 @@ if(HELIX_PLATFORM STREQUAL "windows" OR HELIX_PLATFORM STREQUAL "linux")
                              "-DGOLDEN=${CMAKE_CURRENT_SOURCE_DIR}/Tests/Golden/Shell-${pipeline}.png"
                              "-DOUT=${CMAKE_CURRENT_BINARY_DIR}/shots/Shell-${pipeline}.png" -P "${CMAKE_CURRENT_SOURCE_DIR}/Tests/RunEditor.cmake")
         endforeach()
+        # The .NET runtime is never unloaded: LeakSanitizer is told about its modules.
+        if(HELIX_ENABLE_ASAN AND HELIX_PLATFORM STREQUAL "linux")
+            helix_dependency_dir(editor_scripting_dir Scripting)
+            set_tests_properties(helix_editor_csharp helix_editor_shell_standard helix_editor_shell_physical PROPERTIES
+                                 ENVIRONMENT "LSAN_OPTIONS=suppressions=${editor_scripting_dir}/Tests/Support/LeakSuppressions.txt")
+        endif()
     endif()
 endif()

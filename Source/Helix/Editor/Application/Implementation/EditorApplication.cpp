@@ -13,7 +13,7 @@ namespace helix::editor
         struct State
         {
             platform::Window* window = nullptr;
-            String projectPath, applicationPath, dataPath;
+            String projectPath, applicationPath, dataPath, executeMethod;
             bool playing = false, paused = false, stepAsked = false;
             bool quit = false;
             i32 quitCode = 0;
@@ -94,6 +94,8 @@ namespace helix::editor
     String EditorApplication::projectPathInternal() { return S().projectPath; }
     String EditorApplication::editorDataPathInternal() { return S().dataPath; }
     void EditorApplication::SetDataPath(StringView path) { S().dataPath = String(path); }
+    String EditorApplication::executeMethodInternal() { return S().executeMethod; }
+    void EditorApplication::SetExecuteMethod(StringView method) { S().executeMethod = String(method); }
 
     String EditorApplication::projectNameInternal()
     {
