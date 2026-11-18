@@ -608,7 +608,13 @@ namespace helix::editor
             ProjectDatabase::Refresh();
             return true;
         case ModificationResult::Failed: return false;
-        default: return ProjectDatabase::Delete(path).Empty();
+        default:
+        {
+            String error = ProjectDatabase::Delete(path);
+            if (!error.Empty())
+                HX_LOG_WARNING(AssetLog, "DeleteAsset: {}.", error);
+            return error.Empty();
+        }
         }
     }
 

@@ -9,6 +9,7 @@
 #include <Helix/Platform/Threading/Thread.h>
 #include <Helix/Engine/Asset/Asset.h>
 #include <Helix/Platform/IO/FileSystem.h>
+#include <Helix/Platform/Time/Time.h>
 
 #include <cstring>
 
@@ -370,6 +371,19 @@ namespace helix::editor
             return true;
         }
 
+        // A file or folder the system holds for a moment (a virus scanner or the indexer reading a new file on
+        // Windows) is tried again a few times.
+        bool RemoveOne(StringView full, bool folder)
+        {
+            for (i32 attempt = 0; attempt < 10; attempt++)
+            {
+                if (folder ? platform::RemoveEmptyDirectory(full) : platform::RemoveFile(full))
+                    return true;
+                platform::SleepSeconds(0.025);
+            }
+            return false;
+        }
+
         bool RemoveTree(StringView full)
         {
             if (platform::DirectoryExists(full))
@@ -379,9 +393,9 @@ namespace helix::editor
                 for (const Entry& e : entries)
                     if (!RemoveTree(Format("{}/{}", full, e.name).View()))
                         return false;
-                return platform::RemoveEmptyDirectory(full);
+                return RemoveOne(full, true);
             }
-            return platform::RemoveFile(full);
+            return RemoveOne(full, false);
         }
 
         String ParentOf(StringView path)
