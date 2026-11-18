@@ -1,0 +1,33 @@
+/* The skin HelixClassic: written by Tools/GenerateSkin.py from Skins/HelixClassic.json. */
+:root {
+    --hx-text: #d2d2d2;
+    --hx-text-dim: #9a9a9a;
+    --hx-text-strong: #f0f0f0;
+    --hx-accent: #3a8ee6;
+    --hx-accent-text: #ffffff;
+    --hx-selection: #2c5d87;
+    --hx-window: #232323;
+    --hx-panel: #383838;
+    --hx-panel-dark: #2e2e2e;
+    --hx-separator: #1a1a1a;
+}
+.hx-title-bar { background-image: url("HelixClassic/TitleBar.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
+.hx-menu-bar { background-image: url("HelixClassic/MenuBar.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
+.hx-toolbar { background-image: url("HelixClassic/Toolbar.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
+.hx-button { background-image: url("HelixClassic/Button.png"); -helix-slice-left: 7; -helix-slice-top: 7; -helix-slice-right: 7; -helix-slice-bottom: 7; }
+.hx-button-hover { background-image: url("HelixClassic/ButtonHover.png"); -helix-slice-left: 7; -helix-slice-top: 7; -helix-slice-right: 7; -helix-slice-bottom: 7; }
+.hx-button-pressed { background-image: url("HelixClassic/ButtonPressed.png"); -helix-slice-left: 7; -helix-slice-top: 7; -helix-slice-right: 7; -helix-slice-bottom: 7; }
+.hx-button-on { background-image: url("HelixClassic/ButtonOn.png"); -helix-slice-left: 7; -helix-slice-top: 7; -helix-slice-right: 7; -helix-slice-bottom: 7; }
+.hx-dropdown { background-image: url("HelixClassic/Dropdown.png"); -helix-slice-left: 7; -helix-slice-top: 7; -helix-slice-right: 7; -helix-slice-bottom: 7; }
+.hx-tab { background-image: url("HelixClassic/Tab.png"); -helix-slice-left: 7; -helix-slice-top: 7; -helix-slice-right: 7; -helix-slice-bottom: 7; }
+.hx-tab-active { background-image: url("HelixClassic/TabActive.png"); -helix-slice-left: 7; -helix-slice-top: 7; -helix-slice-right: 7; -helix-slice-bottom: 7; }
+.hx-tab-strip { background-image: url("HelixClassic/TabStrip.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
+.hx-panel { background-image: url("HelixClassic/Panel.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
+.hx-header { background-image: url("HelixClassic/Header.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
+.hx-field { background-image: url("HelixClassic/Field.png"); -helix-slice-left: 7; -helix-slice-top: 7; -helix-slice-right: 7; -helix-slice-bottom: 7; }
+.hx-status-bar { background-image: url("HelixClassic/StatusBar.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
+.hx-menu { background-image: url("HelixClassic/Menu.png"); -helix-slice-left: 16; -helix-slice-top: 16; -helix-slice-right: 16; -helix-slice-bottom: 16; }
+.hx-menu-item-hover { background-image: url("HelixClassic/MenuItemHover.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
+.hx-caption-button-hover { background-image: url("HelixClassic/CaptionButtonHover.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
+.hx-caption-close-hover { background-image: url("HelixClassic/CaptionCloseHover.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
+.hx-shadow { background-image: url("HelixClassic/Shadow.png"); -helix-slice-left: 32; -helix-slice-top: 32; -helix-slice-right: 32; -helix-slice-bottom: 32; }

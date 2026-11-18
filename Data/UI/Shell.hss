@@ -1,0 +1,63 @@
+/* The editor's shell over the skin's parts (.hx-*) and colors (--hx-*). */
+.shell {
+    flex-grow: 1;
+    background-color: var(--hx-window);
+    -helix-font-family: "Segoe UI", "Noto Sans", "DejaVu Sans", "Liberation Sans";
+    font-size: 13px;
+    color: var(--hx-text);
+}
+
+/* The title bar: the logo, the window's title, the caption buttons. */
+.title-bar { flex-direction: row; align-items: center; height: 32px; flex-shrink: 0; padding-left: 8px; }
+.logo { width: 22px; height: 22px; margin-right: 8px; background-image: url("../Images/HelixLogo.png"); -helix-background-scale-mode: scale-to-fit; }
+.title { font-size: 14px; color: var(--hx-text-strong); }
+.caption-fill { flex-grow: 1; align-self: stretch; }
+.caption-buttons { flex-direction: row; align-self: stretch; }
+.caption-button { width: 46px; margin: 0px; padding: 0px; border-width: 0px; background-color: rgba(0, 0, 0, 0); align-items: center; justify-content: center; }
+.caption-button:hover { background-image: url("../Skin/HelixClassic/CaptionButtonHover.png"); }
+.caption-button.close:hover { background-image: url("../Skin/HelixClassic/CaptionCloseHover.png"); }
+
+.icon { width: 16px; height: 16px; flex-shrink: 0; -helix-background-scale-mode: scale-to-fit; -helix-background-image-tint-color: var(--hx-text); }
+.icon.minimize { background-image: url("../Skin/Icons/Minimize.png"); }
+.icon.maximize { background-image: url("../Skin/Icons/Maximize.png"); }
+.icon.restore { background-image: url("../Skin/Icons/Restore.png"); }
+.icon.close { background-image: url("../Skin/Icons/Close.png"); }
+.icon.lock { background-image: url("../Skin/Icons/Lock.png"); }
+.icon.arrow-down { width: 10px; height: 10px; background-image: url("../Skin/Icons/ArrowDown.png"); }
+
+/* The menu bar: its titles, lit while hovered or open. */
+.menu-bar { flex-direction: row; align-items: stretch; height: 24px; flex-shrink: 0; padding-left: 4px; }
+.menu-title { padding-left: 9px; padding-right: 9px; -helix-text-align: middle-center; color: var(--hx-text); }
+.menu-title:hover, .menu-title.open { background-image: url("../Skin/HelixClassic/MenuItemHover.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; color: var(--hx-accent-text); }
+
+/* The main toolbar: three groups (left, middle, right) of the registry's elements. */
+.main-toolbar { flex-direction: row; align-items: center; height: 42px; flex-shrink: 0; padding-left: 8px; padding-right: 8px; }
+.toolbar-group { flex-direction: row; align-items: center; flex-basis: 0px; flex-grow: 1; }
+.toolbar-group.middle { justify-content: center; }
+.toolbar-group.right { justify-content: flex-end; }
+.toolbar-strip { flex-direction: row; margin-right: 10px; }
+.tool-button { width: 34px; height: 28px; margin: 0px; margin-right: 1px; padding: 0px; border-width: 0px; align-items: center; justify-content: center; }
+.tool-button:hover { background-image: url("../Skin/HelixClassic/ButtonHover.png"); }
+.tool-button:active { background-image: url("../Skin/HelixClassic/ButtonPressed.png"); }
+.tool-button.on { background-image: url("../Skin/HelixClassic/ButtonOn.png"); }
+.tool-button .icon { width: 20px; height: 20px; }
+.tool-button.on .icon { -helix-background-image-tint-color: var(--hx-accent-text); }
+.toolbar-dropdown { flex-direction: row; align-items: center; height: 28px; min-width: 110px; margin-left: 8px; padding-left: 10px; padding-right: 8px; border-width: 0px; }
+.toolbar-dropdown:hover { background-image: url("../Skin/HelixClassic/ButtonHover.png"); }
+.toolbar-dropdown Label { flex-grow: 1; color: var(--hx-text); }
+
+/* The dock area: windows come with docking; until then the panel's color. */
+.dock-root { flex-grow: 1; flex-direction: row; margin: 2px; }
+
+/* The status bar. */
+.status-bar { flex-direction: row; align-items: center; height: 30px; flex-shrink: 0; padding-left: 10px; padding-right: 10px; }
+.status-logo { width: 20px; height: 20px; margin-right: 8px; background-image: url("../Images/HelixLogo.png"); -helix-background-scale-mode: scale-to-fit; }
+.status-text { color: var(--hx-text); }
+.status-text.strong { color: var(--hx-text-strong); }
+.status-separator { width: 1px; height: 16px; margin-left: 10px; margin-right: 10px; background-color: var(--hx-text-dim); }
+.status-fill { flex-grow: 1; }
+.status-progress { width: 0px; height: 6px; margin-right: 10px; background-color: var(--hx-accent); }
+.status-lock { -helix-background-image-tint-color: var(--hx-text-dim); }
+
+/* The popup menus' look (the dropdown menu's own classes). */
+.helix-dropdown-menu__container-outer { background-image: url("../Skin/HelixClassic/Menu.png"); -helix-slice-left: 16; -helix-slice-top: 16; -helix-slice-right: 16; -helix-slice-bottom: 16; padding: 6px; }

@@ -1,0 +1,35 @@
+<HXML>
+  <!-- The editor's shell: its title bar (the caption moves the window), the menu bar and the main toolbar (filled from
+       their registries), the dock area (docking comes with the windows) and the status bar. -->
+  <Style src="../Skin/HelixClassic.hss"/>
+  <Style src="../Skin/Icons.hss"/>
+  <Style src="Shell.hss"/>
+  <Element name="shell" class="shell">
+    <Element name="title-bar" class="title-bar hx-title-bar editor-caption">
+      <Element name="logo" class="logo editor-caption"/>
+      <Label name="title" class="title editor-caption" text="Helix Engine"/>
+      <Element class="caption-fill editor-caption"/>
+      <Element name="caption-buttons" class="caption-buttons">
+        <Button name="caption-minimize" class="caption-button"><Element class="icon minimize"/></Button>
+        <Button name="caption-maximize" class="caption-button"><Element class="icon maximize"/></Button>
+        <Button name="caption-close" class="caption-button close"><Element class="icon close"/></Button>
+      </Element>
+    </Element>
+    <Element name="menu-bar" class="menu-bar hx-menu-bar"/>
+    <Element name="main-toolbar" class="main-toolbar hx-toolbar">
+      <Element name="toolbar-left" class="toolbar-group left"/>
+      <Element name="toolbar-middle" class="toolbar-group middle"/>
+      <Element name="toolbar-right" class="toolbar-group right"/>
+    </Element>
+    <Element name="dock-root" class="dock-root"/>
+    <Element name="status-bar" class="status-bar hx-status-bar">
+      <Element class="status-logo"/>
+      <Label name="status-product" class="status-text strong" text="Helix Engine"/>
+      <Element class="status-separator"/>
+      <Label name="status-message" class="status-text" text="Ready"/>
+      <Element class="status-fill"/>
+      <Element name="status-progress" class="status-progress"/>
+      <Element name="status-lock" class="icon lock status-lock"/>
+    </Element>
+  </Element>
+</HXML>

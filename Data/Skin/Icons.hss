@@ -1,0 +1,19 @@
+/* The editor's icons: written by Tools/GenerateIcons.py. An element of the class icon-<name> shows one. */
+.icon-minimize { background-image: url("Icons/Minimize.png"); }
+.icon-maximize { background-image: url("Icons/Maximize.png"); }
+.icon-restore { background-image: url("Icons/Restore.png"); }
+.icon-close { background-image: url("Icons/Close.png"); }
+.icon-play { background-image: url("Icons/Play.png"); }
+.icon-pause { background-image: url("Icons/Pause.png"); }
+.icon-step { background-image: url("Icons/Step.png"); }
+.icon-tool-view { background-image: url("Icons/ToolView.png"); }
+.icon-tool-move { background-image: url("Icons/ToolMove.png"); }
+.icon-tool-rotate { background-image: url("Icons/ToolRotate.png"); }
+.icon-tool-scale { background-image: url("Icons/ToolScale.png"); }
+.icon-tool-rect { background-image: url("Icons/ToolRect.png"); }
+.icon-arrow-down { background-image: url("Icons/ArrowDown.png"); }
+.icon-lock { background-image: url("Icons/Lock.png"); }
+.icon-search { background-image: url("Icons/Search.png"); }
+.icon-menu { background-image: url("Icons/Menu.png"); }
+.icon-help { background-image: url("Icons/Help.png"); }
+.icon-layers { background-image: url("Icons/Layers.png"); }
