@@ -1,0 +1,64 @@
+{
+  "comment": "The importers of a project's files by extension: the name of a .meta's section, the version (a newer one imports again), the settings a new .meta gets (two spaces of indentation each level in), the main object's type. What an importer does is registered by its name.",
+  "default": "DefaultImporter",
+  "folder": "DefaultImporter",
+  "importers": [
+    {
+      "name": "TextureImporter", "version": 1, "mainType": "Texture2D",
+      "extensions": ["png", "jpg", "jpeg", "tga", "bmp", "psd", "gif", "hdr", "exr", "tif", "tiff", "ktx", "ktx2", "dds", "pic", "pnm", "webp"],
+      "settings": ["serializedVersion: 13", "mipmaps:", "  mipMapMode: 0", "  enableMipMap: 1", "  sRGBTexture: 1", "  linearTexture: 0",
+                   "isReadable: 0", "streamingMipmaps: 0", "maxTextureSize: 2048", "textureSettings:", "  serializedVersion: 2", "  filterMode: 1",
+                   "  aniso: 1", "  mipBias: 0", "  wrapU: 0", "  wrapV: 0", "  wrapW: 0", "nPOTScale: 1", "alphaUsage: 1", "alphaIsTransparency: 0",
+                   "textureType: 0", "textureShape: 1", "spriteMode: 0", "spritePixelsToUnits: 100", "platformSettings: []"]
+    },
+    {
+      "name": "ModelImporter", "version": 1, "mainType": "GameObject",
+      "extensions": ["fbx", "obj", "gltf", "glb"],
+      "settings": ["serializedVersion: 22200", "meshes:", "  globalScale: 1", "  useFileScale: 1", "  isReadable: 0", "  importBlendShapes: 1",
+                   "  importNormals: 0", "  importTangents: 3", "materials:", "  materialImportMode: 2", "animationType: 2", "importAnimation: 1"]
+    },
+    {
+      "name": "AudioImporter", "version": 1, "mainType": "AudioClip",
+      "extensions": ["wav", "mp3", "ogg", "flac", "aif", "aiff"],
+      "settings": ["serializedVersion: 7", "defaultSettings:", "  serializedVersion: 2", "  loadType: 0", "  sampleRateSetting: 0",
+                   "  compressionFormat: 1", "  quality: 1", "forceToMono: 0", "loadInBackground: 0"]
+    },
+    {
+      "name": "TrueTypeFontImporter", "version": 1, "mainType": "Font",
+      "extensions": ["ttf", "otf", "ttc"],
+      "settings": ["serializedVersion: 4", "fontSize: 16", "forceTextureCase: -2", "characterSpacing: 0", "characterPadding: 1",
+                   "includeFontData: 1", "fontNames: []", "fallbackFontReferences: []"]
+    },
+    {
+      "name": "MonoImporter", "version": 1, "mainType": "MonoScript",
+      "extensions": ["cs"],
+      "settings": ["externalObjects: {}", "serializedVersion: 2", "defaultReferences: []", "executionOrder: 0", "icon: {instanceID: 0}"]
+    },
+    {
+      "name": "TextScriptImporter", "version": 1, "mainType": "TextAsset",
+      "extensions": ["txt", "json", "xml", "bytes", "csv", "md", "html", "htm", "yaml", "fnt"],
+      "settings": ["externalObjects: {}"]
+    },
+    {
+      "name": "NativeFormatImporter", "version": 1, "mainType": "",
+      "extensions": ["mat", "prefab", "asset", "anim", "controller", "overrideController", "mask", "physicMaterial", "physicsMaterial2D", "cubemap",
+                     "flare", "renderTexture", "guiskin", "fontsettings", "mixer", "signal", "playable"],
+      "settings": ["externalObjects: {}", "mainObjectFileID: 0"]
+    },
+    {
+      "name": "UITemplateImporter", "version": 1, "mainType": "UITemplate",
+      "extensions": ["hxml"],
+      "settings": ["externalObjects: {}"]
+    },
+    {
+      "name": "StyleSheetImporter", "version": 1, "mainType": "StyleSheet",
+      "extensions": ["hss", "tss"],
+      "settings": ["externalObjects: {}"]
+    },
+    {
+      "name": "DefaultImporter", "version": 1, "mainType": "",
+      "extensions": ["helix"],
+      "settings": ["externalObjects: {}"]
+    }
+  ]
+}

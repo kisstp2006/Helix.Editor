@@ -339,6 +339,21 @@ namespace HelixEditor.Docking
             Changed();
         }
 
+        // A window not shown yet goes into the area of another's tab (selected there); false when that one is not open.
+        internal static bool DockBeside(EditorWindow w, string otherTab)
+        {
+            string tab = w.GetType().Name;
+            DockArea area = s_Layout.AreaOf(otherTab);
+            if (area == null || s_Layout.AreaOf(tab) != null)
+                return false;
+            area.tabs.Add(tab);
+            area.selected = area.tabs.Count - 1;
+            s_Windows[tab] = w;
+            w.m_Docked = s_Layout.ContainerOf(area) == null;
+            Changed();
+            return true;
+        }
+
         internal static void Remove(EditorWindow w)
         {
             string tab = w.GetType().Name;

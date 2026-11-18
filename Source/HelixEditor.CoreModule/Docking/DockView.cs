@@ -218,6 +218,18 @@ namespace HelixEditor.Docking
             if (m_Container != null)
                 fill.AddToClassList("editor-caption");
             strip.Add(fill);
+            // The area's menu (the selected tab's menu) at the strip's end.
+            var areaMenu = new Element();
+            areaMenu.AddToClassList("dock-area-menu");
+            areaMenu.AddToClassList("icon");
+            areaMenu.AddToClassList("icon-menu");
+            areaMenu.RegisterCallback<PointerDownEvent>(ev =>
+            {
+                ev.StopPropagation();
+                if (area.selectedTab != null)
+                    OpenTabMenu(area, area.selectedTab, areaMenu);
+            });
+            strip.Add(areaMenu);
             var content = new Element();
             content.AddToClassList("dock-content");
             content.AddToClassList("hx-panel");
@@ -350,6 +362,22 @@ namespace HelixEditor.Docking
                 DockManager.layout.RemoveTab(tab);
             DockManager.Changed();
             DockManager.Saved();
+        }
+
+        // A window type's name as a menu shows it: words apart, without a trailing "Window" ("HierarchyWindow":
+        // "Hierarchy", "SceneView": "Scene View").
+        internal static string DisplayName(string type)
+        {
+            if (type.EndsWith("Window") && type.Length > 6)
+                type = type.Substring(0, type.Length - 6);
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < type.Length; i++)
+            {
+                if (i > 0 && char.IsUpper(type[i]) && !char.IsUpper(type[i - 1]))
+                    sb.Append(' ');
+                sb.Append(type[i]);
+            }
+            return sb.ToString();
         }
 
         static string Kebab(string name)
@@ -514,13 +542,21 @@ namespace HelixEditor.Docking
             {
                 string t = type;
                 if (DockManager.layout.AreaOf(t) != null)
-                    menu.AddDisabledItem("Add Tab/" + t, false);
+                    menu.AddDisabledItem("Add Tab/" + DisplayName(t), false);
                 else
-                    menu.AddItem("Add Tab/" + t, false, () =>
+                    menu.AddItem("Add Tab/" + DisplayName(t), false, () =>
                     {
                         DockManager.DockTab(t, area, DropZone.Center, -1);
                         DockManager.Saved();
                     });
+            }
+            // A floating window's menu in a popup window of its own (its window would cut it).
+            if (m_Display != 0 && DockManager.osWindows)
+            {
+                Rect r = anchor.worldBound;
+                Vector2 at = ToDesktop(new Vector2(r.x, r.y));
+                if (PopupMenuWindow.Show(menu, new Rect(at.x, at.y, r.width, r.height)))
+                    return;
             }
             menu.DropDown(anchor.worldBound, m_Root, DropdownMenuSizeMode.Auto);
         }

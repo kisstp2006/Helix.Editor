@@ -149,7 +149,19 @@ namespace helix::editor
     i32 EditorApplication::OpenToolWindowInternal(StringView title, Rect rect)
     {
         const ToolWindowHost& t = S().tools;
-        return t.open ? t.open(t.user, title, rect) : -1;
+        return t.open ? t.open(t.user, title, rect, true) : -1;
+    }
+
+    i32 EditorApplication::OpenPopupWindowInternal(Rect rect)
+    {
+        const ToolWindowHost& t = S().tools;
+        return t.open ? t.open(t.user, "Popup", rect, false) : -1;
+    }
+
+    bool EditorApplication::ToolWindowFocusedInternal(i32 display)
+    {
+        const ToolWindowHost& t = S().tools;
+        return t.focused && t.focused(t.user, display);
     }
 
     void EditorApplication::CloseToolWindowInternal(i32 display)

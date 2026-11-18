@@ -1,11 +1,11 @@
 <HXML>
   <!-- The Project window: its toolbar (Create, the search, lock, menu), the folder tree and the folder's assets. -->
-  <Element class="window-toolbar hx-toolbar">
-    <Button class="window-dropdown hx-dropdown"><Label text="Create"/><Element class="icon arrow-down"/></Button>
+  <Element class="window-toolbar">
+    <Button class="window-dropdown plain"><Label text="Create"/><Element class="icon arrow-down"/></Button>
     <Element class="window-fill"/>
-    <Element class="window-search hx-field"><Element class="icon icon-search"/><Label class="window-search-text" text=""/></Element>
-    <Button class="window-tool hx-button"><Element class="icon icon-lock"/></Button>
-    <Button class="window-tool hx-button"><Element class="icon icon-menu"/></Button>
+    <Element class="window-search"><Element class="icon icon-search"/><Label class="window-search-text" text=""/></Element>
+    <Button class="window-tool"><Element class="icon icon-lock"/></Button>
+    <Button class="window-tool"><Element class="icon icon-menu"/></Button>
   </Element>
   <Element class="project-body">
     <Element class="project-tree">

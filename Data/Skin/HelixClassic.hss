@@ -34,8 +34,8 @@
     --hx-tab-padding: 8px;
     --hx-tab-icon-size: 14px;
     --hx-tab-close-size: 12px;
-    --hx-window-toolbar-height: 21px;
-    --hx-window-control-height: 17px;
+    --hx-window-toolbar-height: 23px;
+    --hx-window-control-height: 18px;
     --hx-window-icon-size: 14px;
     --hx-window-search-width: 140px;
     --hx-window-dropdown-width: 60px;
@@ -75,4 +75,9 @@
 .hx-menu-item-hover { background-image: url("HelixClassic/MenuItemHover.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
 .hx-caption-button-hover { background-image: url("HelixClassic/CaptionButtonHover.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
 .hx-caption-close-hover { background-image: url("HelixClassic/CaptionCloseHover.png"); -helix-slice-left: 6; -helix-slice-top: 6; -helix-slice-right: 6; -helix-slice-bottom: 6; }
+.hx-window-toolbar { background-image: url("HelixClassic/WindowToolbar.png"); -helix-slice-left: 4; -helix-slice-top: 4; -helix-slice-right: 4; -helix-slice-bottom: 4; }
+.hx-toolbar-dropdown { background-image: url("HelixClassic/ToolbarDropdown.png"); -helix-slice-left: 4; -helix-slice-top: 4; -helix-slice-right: 4; -helix-slice-bottom: 4; }
+.hx-toolbar-button-hover { background-image: url("HelixClassic/ToolbarButtonHover.png"); -helix-slice-left: 4; -helix-slice-top: 4; -helix-slice-right: 4; -helix-slice-bottom: 4; }
+.hx-toolbar-button-on { background-image: url("HelixClassic/ToolbarButtonOn.png"); -helix-slice-left: 4; -helix-slice-top: 4; -helix-slice-right: 4; -helix-slice-bottom: 4; }
+.hx-search-field { background-image: url("HelixClassic/SearchField.png"); -helix-slice-left: 9; -helix-slice-top: 9; -helix-slice-right: 9; -helix-slice-bottom: 9; }
 .hx-shadow { background-image: url("HelixClassic/Shadow.png"); -helix-slice-left: 32; -helix-slice-top: 32; -helix-slice-right: 32; -helix-slice-bottom: 32; }

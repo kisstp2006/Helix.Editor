@@ -82,6 +82,7 @@ namespace HelixEditor
                 return;
             Rebuild();
             DockManager.Tick();
+            PopupMenuWindow.Tick();
             EditorWindow.UpdateAll();
             bool maximized = EditorApplication.IsWindowMaximizedInternal();
             if (maximized != m_Maximized && m_Maximize != null)

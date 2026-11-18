@@ -7,6 +7,11 @@
     color: var(--hx-text);
 }
 
+/* The editor's buttons draw the skin's images: the theme's button box (its minimum height, margins, border, colors
+   of its states) does not apply to them. */
+.shell .helix-button { min-height: 0px; margin: 0px; border-width: 0px; border-radius: 0px; background-color: rgba(0, 0, 0, 0); }
+.shell .helix-button:hover, .shell .helix-button:active, .shell .helix-button:focus { background-color: rgba(0, 0, 0, 0); border-width: 0px; }
+
 /* The title bar: the logo, the window's title, the caption buttons. */
 .title-bar { flex-direction: row; align-items: center; height: var(--hx-title-bar-height); flex-shrink: 0; padding-left: 6px; }
 .logo { width: var(--hx-logo-size); height: var(--hx-logo-size); margin-right: 6px; background-image: url("../Images/HelixLogo.png"); -helix-background-scale-mode: scale-to-fit; }
@@ -93,6 +98,8 @@
 .dock-tab.active .dock-tab-close, .dock-tab:hover .dock-tab-close { opacity: 1; }
 .dock-tab-close:hover { -helix-background-image-tint-color: var(--hx-text-strong); background-color: #ffffff20; border-radius: 2px; }
 .dock-tab-fill { flex-grow: 1; }
+.dock-area-menu { width: 14px; height: 14px; align-self: center; margin-right: 4px; -helix-background-image-tint-color: var(--hx-text-dim); }
+.dock-area-menu:hover { -helix-background-image-tint-color: var(--hx-text-strong); }
 .dock-content { flex-grow: 1; flex-direction: column; }
 .editor-window-root { flex-grow: 1; flex-direction: column; }
 .editor-window-gui { flex-grow: 1; }
@@ -104,17 +111,30 @@
 .floating-window { border-width: 1px; border-color: var(--hx-separator); }
 .floating-window .dock-root { margin: 0px; }
 
+/* A popup menu's window: the menu's boxes plain (the window is their size, no room for a drop shadow). */
+.popup-window { background-color: var(--hx-panel); }
+.popup-window .helix-base-dropdown__container-outer { background-image: none; background-color: var(--hx-panel); border-width: 1px; border-color: #121212; padding: 2px; }
+
 /* The windows' toolbars and content. */
-.window-toolbar { flex-direction: row; align-items: center; height: var(--hx-window-toolbar-height); flex-shrink: 0; padding-left: 4px; padding-right: 4px; }
-.window-dropdown { flex-direction: row; align-items: center; height: var(--hx-window-control-height); min-width: var(--hx-window-dropdown-width); margin: 0px; margin-right: 4px; padding-left: 6px; padding-right: 4px; border-width: 0px; }
+.window-toolbar { flex-direction: row; align-items: center; height: var(--hx-window-toolbar-height); flex-shrink: 0; padding-left: 3px; padding-right: 3px; background-image: url("../Skin/HelixClassic/WindowToolbar.png"); -helix-slice-left: 4; -helix-slice-top: 4; -helix-slice-right: 4; -helix-slice-bottom: 4; }
+/* The windows' toolbar controls are flat (the main toolbar's are raised): a dropdown a sunken box (plain: its text and
+   arrow only), a tool lit while hovered and sunken while on, the search field a sunken pill. */
+.window-dropdown { flex-direction: row; align-items: center; height: var(--hx-window-control-height); min-width: var(--hx-window-dropdown-width); margin: 0px; margin-right: 3px; padding-left: 6px; padding-right: 4px; border-width: 0px; background-color: rgba(0, 0, 0, 0); background-image: url("../Skin/HelixClassic/ToolbarDropdown.png"); -helix-slice-left: 4; -helix-slice-top: 4; -helix-slice-right: 4; -helix-slice-bottom: 4; }
+.window-dropdown:hover { background-image: url("../Skin/HelixClassic/ToolbarButtonHover.png"); }
+.window-dropdown.plain { min-width: 0px; background-image: none; padding-left: 4px; }
+.window-dropdown.plain:hover { background-image: url("../Skin/HelixClassic/ToolbarButtonHover.png"); }
 .window-dropdown.wide { min-width: var(--hx-window-dropdown-wide-width); }
-.window-dropdown Label { flex-grow: 1; color: var(--hx-text); font-size: var(--hx-small-font-size); }
-.window-tool { flex-direction: row; align-items: center; justify-content: center; height: var(--hx-window-control-height); min-width: 22px; margin: 0px; margin-right: 3px; padding-left: 4px; padding-right: 4px; border-width: 0px; }
+.window-dropdown Label { flex-grow: 1; color: var(--hx-text); font-size: var(--hx-small-font-size); margin-right: 4px; }
+.window-dropdown .icon.arrow-down { width: 8px; height: 8px; -helix-background-image-tint-color: var(--hx-text-dim); }
+.window-tool { flex-direction: row; align-items: center; justify-content: center; height: var(--hx-window-control-height); min-width: 22px; margin: 0px; margin-right: 1px; padding-left: 4px; padding-right: 4px; border-width: 0px; background-color: rgba(0, 0, 0, 0); background-image: none; }
+.window-tool:hover { background-image: url("../Skin/HelixClassic/ToolbarButtonHover.png"); -helix-slice-left: 4; -helix-slice-top: 4; -helix-slice-right: 4; -helix-slice-bottom: 4; }
+.window-tool.on { background-image: url("../Skin/HelixClassic/ToolbarButtonOn.png"); -helix-slice-left: 4; -helix-slice-top: 4; -helix-slice-right: 4; -helix-slice-bottom: 4; }
+.window-tool.on .icon { -helix-background-image-tint-color: var(--hx-accent); }
 .window-tool Label { color: var(--hx-text); margin-left: 2px; font-size: var(--hx-small-font-size); }
-.window-tool.on { background-image: url("../Skin/HelixClassic/ButtonOn.png"); -helix-slice-left: 7; -helix-slice-top: 7; -helix-slice-right: 7; -helix-slice-bottom: 7; }
 .window-tool .icon { width: var(--hx-window-icon-size); height: var(--hx-window-icon-size); }
-.window-search { flex-direction: row; align-items: center; height: var(--hx-window-control-height); min-width: var(--hx-window-search-width); flex-grow: 0.4; margin-left: 4px; margin-right: 4px; padding-left: 4px; }
-.window-search .icon { width: 12px; height: 12px; -helix-background-image-tint-color: var(--hx-text-dim); }
+.window-separator { width: 1px; height: 14px; margin-left: 3px; margin-right: 4px; background-color: #00000060; border-right-width: 1px; border-right-color: #ffffff0c; }
+.window-search { flex-direction: row; align-items: center; height: var(--hx-window-control-height); min-width: var(--hx-window-search-width); flex-grow: 0.4; margin-left: 4px; margin-right: 4px; padding-left: 7px; background-image: url("../Skin/HelixClassic/SearchField.png"); -helix-slice-left: 9; -helix-slice-top: 9; -helix-slice-right: 9; -helix-slice-bottom: 9; }
+.window-search .icon { width: 11px; height: 11px; -helix-background-image-tint-color: var(--hx-text-dim); }
 .window-search-text { color: var(--hx-text-dim); margin-left: 4px; font-size: var(--hx-small-font-size); }
 .window-fill { flex-grow: 1; }
 .window-content { flex-grow: 1; padding: var(--hx-window-padding); }

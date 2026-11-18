@@ -1,6 +1,12 @@
 #include <Helix/Editor/Host/EditorHost.h>
 
 #include <Helix/Editor/Application/EditorApplication.h>
+#include <Helix/Editor/Assets/ArtifactStore.h>
+#include <Helix/Editor/Assets/AssetDatabase.h>
+#include <Helix/Editor/Assets/AssetImporters.h>
+#include <Helix/Editor/Assets/ImportNative.h>
+#include <Helix/Editor/Assets/ProjectDatabase.h>
+#include <Helix/Engine/Application/Application.h>
 #include <Helix/Editor/Host/EditorModules.h>
 
 #include <Helix/Core/Logging/Log.h>
@@ -12,12 +18,16 @@
 #include <Helix/Platform/IO/FileSystem.h>
 #include <Helix/Platform/Window/Window.h>
 #include <Helix/Player/Host/Player.h>
+#include <Helix/Player/Scripts/PlayerScripts.h>
+#include <Helix/Scripting/Host/DotnetHost.h>
 #include <Helix/Serialization/Json/Parser.h>
 #include <Helix/Scripting/Bindings/Interop.h>
 #include <Helix/UI/Core/Atoms.h>
 #include <Helix/UI/Engine/Panel.h>
 #include <Helix/UI/Engine/UIPanelSettings.h>
 #include <Helix/UI/Engine/UIView.h>
+
+#include <bit>
 
 HX_BINDINGS_EXPORT void HxBindings_HelixEditor_Publish();
 
@@ -69,6 +79,68 @@ namespace helix::editor
             return !className.Empty();
         }
 
+        // The project's asset database: the importers' descriptions of the data folder, the project's files with their
+        // .meta files, refreshed as the editor starts and when it comes back to the front.
+        // The project's script assemblies (Library/ScriptAssemblies, where the script compilation puts them): loaded
+        // before its first refresh, so their importers and postprocessors take part in it.
+        void LoadProjectAssemblies(StringView projectPath)
+        {
+            String folder = platform::JoinPath(projectPath, "Library/ScriptAssemblies");
+            Array<String> files;
+            platform::ListDirectory(folder.View(), [](const platform::DirectoryEntry& e, void* user) {
+                if (!e.isDirectory && platform::GetExtension(e.name) == ".dll")
+                    static_cast<Array<String>*>(user)->Push(String(e.name));
+            }, &files);
+            if (files.Empty() || !scripting::DotnetHost::IsRunning())
+                return;
+            String error;
+            String core = platform::JoinPath(platform::JoinPath(platform::GetDirectoryName(platform::ExecutablePath()), "Managed"), player::kCoreModuleAssembly);
+            scripting::AssemblyHandle assembly = scripting::DotnetHost::LoadAssembly(core.View(), error);
+            auto load = assembly.IsValid()
+                            ? std::bit_cast<i32 (*)(const char*, i32)>(scripting::DotnetHost::GetFunction(assembly, "HelixEngine.Internal.ScriptBridge", "LoadScripts", error))
+                            : nullptr;
+            if (!load)
+            {
+                HX_LOG_ERROR(EditorLog, "The project's script assemblies could not be loaded: {}", error);
+                return;
+            }
+            for (const String& f : files)
+            {
+                String path = platform::JoinPath(folder, f);
+                i32 classes = load(path.Data(), i32(path.Size()));
+                if (classes < 0)
+                    HX_LOG_ERROR(EditorLog, "The project's assembly {} did not load.", f);
+                else
+                    HX_LOG_INFO(EditorLog, "The project's assembly {} loaded: {} script classes.", f, classes);
+            }
+        }
+
+        void OpenProject(StringView dataFolder, StringView projectPath)
+        {
+            // Application.dataPath: the project's Assets folder (as the reference's editor has it).
+            engine::Application::SetDataPath(platform::JoinPath(projectPath, "Assets").View());
+            LoadProjectAssemblies(projectPath);
+            Array<u8> bytes;
+            String error;
+            String importers = platform::JoinPath(dataFolder, "Settings/Importers.json");
+            if (!platform::ReadFile(importers, bytes) ||
+                !AssetImporters::Load(StringView(reinterpret_cast<const char*>(bytes.Data()), bytes.Size()), error))
+                HX_LOG_ERROR(EditorLog, "The importers could not be read from '{}' {}", importers, error);
+            ProjectDatabase::Open(projectPath);
+            // The project's imports run its asset postprocessors.
+            ImportNative::WrapLoaders();
+            ArtifactStore::SetImports(true);
+            AssetChanges changes = ProjectDatabase::Refresh();
+            // What the last session left unimported (or whose artifacts went) is imported now.
+            for (const AssetRecord& r : ProjectDatabase::All())
+                ArtifactStore::Queue(r);
+            HX_LOG_INFO(EditorLog, "The project has {} assets ({} .meta files written).", ProjectDatabase::All().Size(), changes.metasWritten);
+            engine::Application::focusChanged().Add([](void*, bool focused) {
+                if (focused && AssetDatabase::AutoRefreshAllowed())
+                    ProjectDatabase::Refresh();
+            });
+        }
+
         // The shader assemblies beside the executable, loaded as assets.
         engine::FolderAssetSource* LoadShaders()
         {
@@ -118,6 +190,7 @@ namespace helix::editor
         {
             auto* run = static_cast<Run*>(user);
             EditorApplication::Tick();
+            ArtifactStore::Tick();
             if (EditorApplication::QuitRequested(run->code))
                 return false;
             return run->player.Frame();
@@ -207,14 +280,19 @@ namespace helix::editor
             // Floating windows: tool windows of the player, framed by the editor too.
             EditorApplication::ToolWindowHost tools;
             tools.user = &run.player;
-            tools.open = [](void* user, StringView title, Rect rect) {
+            tools.open = [](void* user, StringView title, Rect rect, bool decorated) {
                 auto* player = static_cast<player::Player*>(user);
-                i32 display = player->OpenToolWindow({.title = title, .x = i32(rect.x), .y = i32(rect.y), .width = i32(rect.width), .height = i32(rect.height)});
+                i32 display = player->OpenToolWindow({.title = title, .x = i32(rect.x), .y = i32(rect.y), .width = i32(rect.width), .height = i32(rect.height),
+                                                      .decorated = decorated});
                 if (platform::Window* w = player->DisplayWindow(display))
                     w->SetHitTest(&HitTest, reinterpret_cast<void*>(intptr_t(display)));
                 return display;
             };
             tools.close = [](void* user, i32 display) { static_cast<player::Player*>(user)->CloseToolWindow(display); };
+            tools.focused = [](void* user, i32 display) {
+                platform::Window* w = static_cast<player::Player*>(user)->DisplayWindow(display);
+                return w && w->HasFocus();
+            };
             tools.closeRequested = [](void* user, i32 display) {
                 platform::Window* w = static_cast<player::Player*>(user)->DisplayWindow(display);
                 return w && w->CloseRequested();
@@ -225,6 +303,7 @@ namespace helix::editor
         EditorApplication::SetDataPath(options.dataFolder.View());
         EditorApplication::SetExecuteMethod(editor.executeMethod.View());
         engine::FolderAssetSource* shaders = LoadShaders();
+        OpenProject(options.dataFolder.View(), editor.projectPath.View());
         String pipelineName, pipelineClass;
         engine::ScriptableObject* asset = nullptr;
         if (PipelineClass(options.dataFolder.View(), editor.pipeline.View(), pipelineName, pipelineClass) && !pipelineClass.Empty())
@@ -241,6 +320,7 @@ namespace helix::editor
         engine::GraphicsSettings::SetDefaultRenderPipeline(nullptr);
         EditorApplication::SetHost(nullptr, editor.projectPath.View(), platform::ExecutablePath().View());
         EditorApplication::SetToolWindowHost({});
+        ProjectDatabase::Close();
         run.player.Shutdown();
         delete shaders;
         return code;

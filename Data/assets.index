@@ -9,6 +9,7 @@ ff8af3129edaa73d08e42397b3df0d27 Layouts/4 Split.layout
 198bfa1cb976d62f0d0e6cd255bccac4 Scenes/Editor.helix
 89efaaa2072673663bb33202c058ffda Scripts/EditorShell.asset
 0e7116487177f75ed43a634f126647ba Scripts/UIView.asset
+90bfd54a21a98f416819ad914fe0e718 Settings/Importers.json
 534d3976ae5a97e30fb92d98a8095d33 Settings/Pipelines.json
 c7d44b4fd62b0df81db8dd282b363171 Skin/HelixClassic.hss
 08e71984366f43ddfa33565041636dfa Skin/HelixClassic/Button.png
@@ -24,6 +25,7 @@ fd30c0b63fa43150c8e639d55a1a4dc0 Skin/HelixClassic/CaptionCloseHover.png
 fa82f3020f945806ecd630ff691c8936 Skin/HelixClassic/MenuBar.png
 f53a1b2832f8d156ee7b85a0878056cc Skin/HelixClassic/MenuItemHover.png
 62a1ed5bbcddab6369095fad3d1efc01 Skin/HelixClassic/Panel.png
+edb5d84c8e99df7ac0ccfdc4716c8643 Skin/HelixClassic/SearchField.png
 dde69da39d1ea21eb4be63cdb5100b87 Skin/HelixClassic/Shadow.png
 cb8e227d3247cb2ef2229af5e4ff505f Skin/HelixClassic/StatusBar.png
 5ee8c43b194ce1d018f7f6fbdaf0fbf4 Skin/HelixClassic/Tab.png
@@ -31,6 +33,10 @@ b190337e229ba338840c03924f2f8833 Skin/HelixClassic/TabActive.png
 c17196c836deb90f4729aa3b884c24c8 Skin/HelixClassic/TabStrip.png
 e010437fecd8a38fc096e8e4ef87f71a Skin/HelixClassic/TitleBar.png
 ce4a9d8c2d93902e2f36ca68e734a16f Skin/HelixClassic/Toolbar.png
+162190386e7a49595a532448e4dbe462 Skin/HelixClassic/ToolbarButtonHover.png
+661b97044d3170401165cd3179d484c4 Skin/HelixClassic/ToolbarButtonOn.png
+e85236f3c528e73f663e79a40f09fda5 Skin/HelixClassic/ToolbarDropdown.png
+1b3abbd66257151b6619d81dd90fe5fa Skin/HelixClassic/WindowToolbar.png
 292c18512e347db8d0330543f9474d6d Skin/Icons.hss
 a54681b83cdedde4182aa809c285e00b Skin/Icons/ArrowDown.png
 5452c9c3192bd23f1bd9202cce78a0af Skin/Icons/Close.png
@@ -63,6 +69,7 @@ de587991aa75616a9b7fefede3151ef8 Skin/Icons/WindowInspectorWindow.png
 f0c28bcda6f4589da04cc11a95759c26 Skin/Icons/WindowProjectWindow.png
 49cd6f89483f6f09b008d2d2d606978b Skin/Icons/WindowSceneView.png
 53027091fc92fc24dab181da5733d663 UI/Floating.hxml
+0ed06d88407320b9470c7f3305d54faf UI/Popup.hxml
 bc2fb8b4243a36e9b1129da57f0cf40e UI/Shell.hss
 331c939610bc2838b20b0b2817647387 UI/Shell.hxml
 2136d521afaaacd377b3252b8bdac7ab UI/Windows/ConsoleWindow.hxml

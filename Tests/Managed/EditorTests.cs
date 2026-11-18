@@ -9,6 +9,167 @@ namespace HelixEditor.Tests
     // The editor's C# tests, run in the editor (-batchmode -executeMethod HelixEditor.Tests.EditorTests.Run): the dock
     // model's operations and its text form first, then the session's windows and their docking by the view's events,
     // one step a frame (the view is laid out between them). The editor ends with the number of failures.
+    // A scripted importer of the tests: a .cube file holds a size; its asset is a texture of that size.
+    [HelixEditor.AssetImporters.ScriptedImporter(1, "cube")]
+    public sealed class CubeImporter : HelixEditor.AssetImporters.ScriptedImporter
+    {
+        public override void OnImportAsset(HelixEditor.AssetImporters.AssetImportContext ctx)
+        {
+            string text = System.IO.File.ReadAllText(System.IO.Path.Combine(EditorApplication.projectPathInternal, ctx.assetPath)).Trim();
+            // "%<name>": a size of 3 that depends on a custom dependency.
+            if (text.StartsWith("%"))
+            {
+                ctx.DependsOnCustomDependency(text.Substring(1));
+                text = "3";
+            }
+            // "@<path>": the size is in another file, the import depending on it.
+            if (text.StartsWith("@"))
+            {
+                string other = text.Substring(1);
+                ctx.DependsOnSourceAsset(other);
+                string full = System.IO.Path.Combine(EditorApplication.projectPathInternal, other);
+                text = System.IO.File.Exists(full) ? System.IO.File.ReadAllText(full).Trim() : "1";
+            }
+            int size = int.TryParse(text, out int n) ? n : 1;
+            var t = new Texture2D(size, size) { name = System.IO.Path.GetFileNameWithoutExtension(ctx.assetPath) };
+            ctx.AddObjectToAsset("texture", t);
+            ctx.SetMainObject(t);
+        }
+    }
+
+    // Postprocessors of the assets under Assets/Post/ (the others' imports untouched): what they get, logged.
+    public sealed class TestPostprocessor : AssetPostprocessor
+    {
+        internal static readonly List<string> s_Log = new();
+
+        static bool Mine(string path) => path == "Assets/Post" || path.StartsWith("Assets/Post/", StringComparison.Ordinal);
+
+        public override uint GetVersion() => 1;
+
+        void OnPreprocessAsset()
+        {
+            if (Mine(assetPath))
+                s_Log.Add("asset");
+        }
+
+        void OnPreprocessTexture()
+        {
+            if (!Mine(assetPath))
+                return;
+            s_Log.Add("pre texture");
+            ((TextureImporter)assetImporter).isReadable = true;
+        }
+
+        void OnPostprocessTexture(Texture2D texture)
+        {
+            if (Mine(assetPath))
+                s_Log.Add($"post texture {texture.width} {texture.isReadable}");
+        }
+
+        internal static int s_Refreshes;
+
+        static void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths)
+        {
+            s_Refreshes++;
+            foreach (string p in importedAssets)
+                if (Mine(p))
+                    s_Log.Add("imported " + p);
+            foreach (string p in deletedAssets)
+                if (Mine(p))
+                    s_Log.Add("deleted " + p);
+            for (int i = 0; i < movedAssets.Length; i++)
+                if (Mine(movedAssets[i]))
+                    s_Log.Add($"moved {movedFromAssetPaths[i]} {movedAssets[i]}");
+        }
+    }
+
+    // The model messages of the assets under Assets/Kinds/.
+    public sealed class KindsPostprocessor : AssetPostprocessor
+    {
+        internal static readonly List<string> s_Log = new();
+
+        void OnPreprocessModel()
+        {
+            if (assetPath.StartsWith("Assets/Kinds/", StringComparison.Ordinal))
+                s_Log.Add("pre model");
+        }
+
+        void OnPostprocessModel(GameObject root)
+        {
+            if (assetPath.StartsWith("Assets/Kinds/", StringComparison.Ordinal))
+                s_Log.Add($"post model {root.name}");
+        }
+    }
+
+    public sealed class LatePostprocessor : AssetPostprocessor
+    {
+        public override int GetPostprocessOrder() => 10;
+
+        void OnPreprocessAsset()
+        {
+            if (assetPath.StartsWith("Assets/Post/", StringComparison.Ordinal))
+                TestPostprocessor.s_Log.Add("late asset");
+        }
+    }
+
+    // A modification processor of the assets under Assets/Guard/: refuses some operations, does others itself.
+    public sealed class TestModificationProcessor : AssetModificationProcessor
+    {
+        internal static readonly List<string> s_Log = new();
+
+        static bool Guarded(string path) => path.StartsWith("Assets/Guard/", StringComparison.Ordinal);
+
+        static void OnWillCreateAsset(string assetName)
+        {
+            if (Guarded(assetName))
+                s_Log.Add("create " + assetName);
+        }
+
+        static AssetDeleteResult OnWillDeleteAsset(string path, RemoveAssetOptions options)
+        {
+            if (path == "Assets/Guard/Keep.asset")
+                return AssetDeleteResult.FailedDelete;
+            if (path != "Assets/Guard/Self.asset")
+                return AssetDeleteResult.DidNotDelete;
+            string full = System.IO.Path.Combine(EditorApplication.projectPathInternal, path);
+            System.IO.File.Delete(full);
+            System.IO.File.Delete(full + ".meta");
+            s_Log.Add($"deleted {path} {options}");
+            return AssetDeleteResult.DidDelete;
+        }
+
+        static AssetMoveResult OnWillMoveAsset(string sourcePath, string destinationPath) =>
+            destinationPath.StartsWith("Assets/Guard/Locked", StringComparison.Ordinal) ? AssetMoveResult.FailedMove : AssetMoveResult.DidNotMove;
+
+        static string[] OnWillSaveAssets(string[] paths)
+        {
+            var kept = new List<string>();
+            foreach (string p in paths)
+                if (!p.EndsWith("NoSave.asset", StringComparison.Ordinal))
+                    kept.Add(p);
+                else
+                    s_Log.Add("not saved " + p);
+            return kept.ToArray();
+        }
+
+        static bool IsOpenForEdit(string[] paths, List<string> outNotEditablePaths, StatusQueryOptions statusQueryOptions)
+        {
+            foreach (string p in paths)
+                if (p.Contains("ReadOnly"))
+                    outNotEditablePaths.Add(p);
+            return outNotEditablePaths.Count == 0;
+        }
+
+        static bool CanOpenForEdit(string[] paths, List<string> outNotEditablePaths, StatusQueryOptions statusQueryOptions) =>
+            IsOpenForEdit(paths, outNotEditablePaths, statusQueryOptions);
+
+        static bool MakeEditable(string[] paths, string prompt, List<string> outNotEditablePaths)
+        {
+            s_Log.Add("make editable " + string.Join(",", paths));
+            return true;
+        }
+    }
+
     public static class EditorTests
     {
         static int s_Failures, s_Checks;
@@ -25,6 +186,10 @@ namespace HelixEditor.Tests
 
         static void Equal<T>(T expected, T actual, string what) =>
             Check(EqualityComparer<T>.Default.Equals(expected, actual), $"{what}: expected '{expected}', got '{actual}'");
+
+        static void Equal<T>(T[] expected, T[] actual, string what) =>
+            Check(expected != null && actual != null && System.Linq.Enumerable.SequenceEqual(expected, actual),
+                  $"{what}: expected [{(expected == null ? "null" : string.Join(", ", expected))}], got [{(actual == null ? "null" : string.Join(", ", actual))}]");
 
         public static void Run()
         {
@@ -82,6 +247,475 @@ namespace HelixEditor.Tests
             Debug.Log($"{(s_Failures == before ? "ok" : "FAILED")}: {name}");
         }
 
+        /// <summary>The asset database's tests on the project Tests/Projects/Basic.</summary>
+        public static void RunAssets()
+        {
+            s_Steps.Enqueue(("the project's assets", ProjectAssets));
+            s_Steps.Enqueue(("loading by path", LoadByPath));
+            s_Steps.Enqueue(("a scripted importer", ScriptedImport));
+            s_Steps.Enqueue(("an importer's settings", ImporterSettings));
+            s_Steps.Enqueue(("guids", Guids));
+            s_Steps.Enqueue(("objects and their assets", ObjectsAndAssets));
+            s_Steps.Enqueue(("native assets", NativeAssets));
+            s_Steps.Enqueue(("labels", Labels));
+            s_Steps.Enqueue(("importer types and batches", ImporterTypesAndBatches));
+            s_Steps.Enqueue(("asset postprocessors", Postprocessors));
+            s_Steps.Enqueue(("modification processors", ModificationProcessors));
+            s_Steps.Enqueue(("the importer kinds", ImporterKinds));
+            s_Steps.Enqueue(("folders and moves", FoldersAndMoves));
+            EditorApplication.update += Next;
+        }
+
+        static void Postprocessors()
+        {
+            string root = EditorApplication.projectPathInternal;
+            System.IO.Directory.CreateDirectory(System.IO.Path.Combine(root, "Assets/Post"));
+            System.IO.File.Copy(System.IO.Path.Combine(root, "Assets/Textures/Checker.png"), System.IO.Path.Combine(root, "Assets/Post/Tinted.png"));
+            TestPostprocessor.s_Log.Clear();
+            AssetDatabase.Refresh();
+            Equal(new[] { "asset", "pre texture", "late asset", "imported Assets/Post", "imported Assets/Post/Tinted.png" }, TestPostprocessor.s_Log.ToArray(),
+                  "before the import, in order, then the refresh's");
+            AfterImports("the postprocessed import", () =>
+            {
+                Texture2D t = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Post/Tinted.png");
+                Check(TestPostprocessor.s_Log.Contains("post texture 4 True"), $"after it, on its texture ({string.Join(", ", TestPostprocessor.s_Log)})");
+                Check(t != null && t.isReadable, "the importer's change applied to the import");
+                string meta = System.IO.File.ReadAllText(System.IO.Path.Combine(root, "Assets/Post/Tinted.png.meta"));
+                Check(meta.Contains("isReadable: 0"), "the .meta as it was");
+                TestPostprocessor.s_Log.Clear();
+                Equal("", AssetDatabase.MoveAsset("Assets/Post/Tinted.png", "Assets/Post/Moved.png"), "moved");
+                Equal(new[] { "moved Assets/Post/Tinted.png Assets/Post/Moved.png" }, TestPostprocessor.s_Log.ToArray(), "a move");
+                TestPostprocessor.s_Log.Clear();
+                Check(AssetDatabase.DeleteAsset("Assets/Post"), "deleted");
+                Equal(new[] { "deleted Assets/Post", "deleted Assets/Post/Moved.png" }, TestPostprocessor.s_Log.ToArray(), "the deletions");
+            });
+        }
+
+        static void ImporterKinds()
+        {
+            string root = EditorApplication.projectPathInternal;
+            System.IO.Directory.CreateDirectory(System.IO.Path.Combine(root, "Assets/Kinds"));
+            System.IO.File.WriteAllText(System.IO.Path.Combine(root, "Assets/Kinds/Tri.obj"), "o Tri\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");
+            string shaders = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Environment.ProcessPath), "Shaders", "Helix.UI.Shaders.dll");
+            System.IO.File.Copy(shaders, System.IO.Path.Combine(root, "Assets/Kinds/UI.dll"));
+            KindsPostprocessor.s_Log.Clear();
+            AssetDatabase.Refresh();
+            Equal(new[] { "pre model" }, KindsPostprocessor.s_Log.ToArray(), "the model preprocessed");
+            AfterImports("the kinds imported", () =>
+            {
+                GameObject model = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Kinds/Tri.obj");
+                Check(model != null, "a model's root");
+                bool mesh = false;
+                foreach (HelixEngine.Object o in AssetDatabase.LoadAllAssetsAtPath("Assets/Kinds/Tri.obj"))
+                    mesh |= o is Mesh m && m.vertexCount == 3;
+                Check(mesh, "its mesh");
+                Equal(typeof(ModelImporter), AssetDatabase.GetImporterType("Assets/Kinds/Tri.obj"), "the model importer");
+                Check(!string.IsNullOrEmpty(AssetDatabase.ArtifactPathInternal("Assets/Kinds/Tri.obj")), "the model's artifact");
+                Check(KindsPostprocessor.s_Log.Count == 2 && KindsPostprocessor.s_Log[1].StartsWith("post model ", StringComparison.Ordinal),
+                      $"the model postprocessed on its root ({string.Join(", ", KindsPostprocessor.s_Log)})");
+                bool shader = false;
+                foreach (HelixEngine.Object o in AssetDatabase.LoadAllAssetsAtPath("Assets/Kinds/UI.dll"))
+                    shader |= o is Shader;
+                Check(shader, "a shader assembly's shaders");
+                Check(AssetDatabase.DeleteAsset("Assets/Kinds"), "the kinds deleted");
+            });
+        }
+
+        static void ModificationProcessors()
+        {
+            TestModificationProcessor.s_Log.Clear();
+            AssetDatabase.CreateFolder("Assets", "Guard");
+            var keep = new Texture2D(1, 1) { name = "Keep" };
+            AssetDatabase.CreateAsset(keep, "Assets/Guard/Keep.asset");
+            Equal(new[] { "create Assets/Guard/Keep.asset.meta" }, TestModificationProcessor.s_Log.ToArray(), "told of the new asset");
+            Check(!AssetDatabase.DeleteAsset("Assets/Guard/Keep.asset") && AssetDatabase.AssetPathExists("Assets/Guard/Keep.asset"), "a deletion refused");
+            AssetDatabase.CreateAsset(new Texture2D(1, 1) { name = "Self" }, "Assets/Guard/Self.asset");
+            Check(AssetDatabase.DeleteAsset("Assets/Guard/Self.asset") && !AssetDatabase.AssetPathExists("Assets/Guard/Self.asset"), "deleted by the processor");
+            Check(TestModificationProcessor.s_Log.Contains("deleted Assets/Guard/Self.asset DeleteAssets"), "with the options");
+            Check(AssetDatabase.MoveAsset("Assets/Guard/Keep.asset", "Assets/Guard/Locked.asset") != "", "a move refused");
+            Check(AssetDatabase.RenameAsset("Assets/Guard/Keep.asset", "Locked") != "" && AssetDatabase.AssetPathExists("Assets/Guard/Keep.asset"), "a rename too");
+            var noSave = new Texture2D(1, 1) { name = "NoSave" };
+            AssetDatabase.CreateAsset(noSave, "Assets/Guard/NoSave.asset");
+            EditorUtility.SetDirty(keep);
+            EditorUtility.SetDirty(noSave);
+            AssetDatabase.SaveAssets();
+            Check(!EditorUtility.IsDirty(keep) && EditorUtility.IsDirty(noSave), "the processor picked what is saved");
+            Check(TestModificationProcessor.s_Log.Contains("not saved Assets/Guard/NoSave.asset"), "told of the saves");
+            Check(AssetDatabase.IsOpenForEdit("Assets/Guard/Keep.asset") && AssetDatabase.IsOpenForEdit(keep), "open for edit");
+            Check(!AssetDatabase.IsOpenForEdit("Assets/Guard/ReadOnly.asset", out string message) && message != "", "not open for edit, with why");
+            var notEditable = new List<string>();
+            AssetDatabase.IsOpenForEdit(new[] { "Assets/Guard/Keep.asset", "Assets/Guard/ReadOnly.asset" }, notEditable);
+            Equal(new[] { "Assets/Guard/ReadOnly.asset" }, notEditable.ToArray(), "the paths not editable");
+            Check(!AssetDatabase.CanOpenForEdit("Assets/Guard/ReadOnly.asset") && AssetDatabase.CanOpenForEdit(keep), "can open for edit");
+            Check(AssetDatabase.IsMetaFileOpenForEdit(keep), "its .meta open for edit");
+            Check(AssetDatabase.MakeEditable("Assets/Guard/Keep.asset") && TestModificationProcessor.s_Log.Contains("make editable Assets/Guard/Keep.asset"),
+                  "made editable");
+            EditorUtility.ClearDirty(noSave);
+            Check(AssetDatabase.DeleteAsset("Assets/Guard") && !AssetDatabase.IsValidFolder("Assets/Guard"), "the folder deleted with what it holds");
+        }
+
+        static void Guids()
+        {
+            GUID g = AssetDatabase.GUIDFromAssetPath("Assets/Textures/Checker.png");
+            Check(!g.Empty(), "a guid of a path");
+            Equal(AssetDatabase.AssetPathToGUID("Assets/Textures/Checker.png"), g.ToString(), "the same as its text");
+            Equal("Assets/Textures/Checker.png", AssetDatabase.GUIDToAssetPath(g), "and back");
+            Check(GUID.TryParse(g.ToString().ToUpperInvariant(), out GUID upper) && upper == g, "parsed in either case");
+            Check(!GUID.TryParse("xyz", out GUID bad) && bad.Empty(), "not a guid");
+            Check(GUID.Generate() != GUID.Generate(), "new guids");
+            Texture2D t = AssetDatabase.LoadAssetByGUID<Texture2D>(g);
+            Check(t != null && t.width == 4, "loaded by guid");
+            GUID[] found = AssetDatabase.FindAssetGUIDs("checker t:Texture2D");
+            Check(found.Length == 1 && found[0] == g, "found as guids");
+            Check(AssetDatabase.GUIDFromAssetPath("Assets/None.png").Empty(), "no guid for no asset");
+        }
+
+        static void ObjectsAndAssets()
+        {
+            Texture2D t = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Checker.png");
+            Equal("Assets/Textures/Checker.png", AssetDatabase.GetAssetPath(t), "an object's asset path");
+            Equal("Assets/Textures/Checker.png", AssetDatabase.GetAssetOrScenePath(t), "or scene path");
+            Check(AssetDatabase.Contains(t) && AssetDatabase.IsMainAsset(t) && !AssetDatabase.IsSubAsset(t), "the main object of an asset");
+            Check(AssetDatabase.IsForeignAsset(t) && !AssetDatabase.IsNativeAsset(t), "imported from another format");
+            Check(AssetDatabase.TryGetGUIDAndLocalFileIdentifier(t, out string guid, out long id), "its guid and fileID");
+            Equal(AssetDatabase.AssetPathToGUID("Assets/Textures/Checker.png"), guid, "the guid");
+            Equal(2800000L, id, "the main texture's fileID");
+            var loose = new Texture2D(1, 1);
+            Check(!AssetDatabase.Contains(loose) && AssetDatabase.GetAssetPath(loose) == "", "an object of no asset");
+            Check(!AssetDatabase.TryGetGUIDAndLocalFileIdentifier(loose, out _, out _), "no guid for it");
+            HelixEngine.Object.DestroyImmediate(loose);
+            Equal(typeof(Texture2D), AssetDatabase.GetMainAssetTypeAtPath("Assets/Textures/Checker.png"), "the main type");
+            Equal(typeof(Texture2D), AssetDatabase.GetTypeFromPathAndFileID("Assets/Textures/Checker.png", 2800000), "the type of a fileID");
+            Equal(null, AssetDatabase.GetMainAssetTypeAtPath("Assets/None.png"), "no type for no asset");
+            Check(AssetDatabase.IsMainAssetAtPathLoaded("Assets/Textures/Checker.png"), "loaded");
+            Equal("Assets/Textures/Checker.png.meta", AssetDatabase.GetTextMetaFilePathFromAssetPath("Assets/Textures/Checker.png"), "the .meta's path");
+            Equal("Assets/Textures/Checker.png", AssetDatabase.GetAssetPathFromTextMetaFilePath("Assets/Textures/Checker.png.meta"), "the asset's path");
+            Equal("Assets/Textures/Checker 1.png", AssetDatabase.GenerateUniqueAssetPath("Assets/Textures/Checker.png"), "a free path");
+            Equal("Assets/Textures/New.png", AssetDatabase.GenerateUniqueAssetPath("Assets/Textures/New.png"), "a free path as it is");
+            Equal("", AssetDatabase.GenerateUniqueAssetPath("Nowhere/X.png"), "no path outside the project");
+        }
+
+        static int Documents(string path)
+        {
+            string text = System.IO.File.ReadAllText(System.IO.Path.Combine(EditorApplication.projectPathInternal, path));
+            int n = 0;
+            for (int at = text.IndexOf("--- !h!", StringComparison.Ordinal); at >= 0; at = text.IndexOf("--- !h!", at + 1, StringComparison.Ordinal))
+                n++;
+            return n;
+        }
+
+        static void NativeAssets()
+        {
+            var made = new Texture2D(2, 2) { name = "Made" };
+            AssetDatabase.CreateAsset(made, "Assets/Made.asset");
+            Check(AssetDatabase.AssetPathExists("Assets/Made.asset"), "an asset made");
+            Equal("Assets/Made.asset", AssetDatabase.GetAssetPath(made), "the object is its asset");
+            Check(AssetDatabase.IsMainAsset(made) && AssetDatabase.IsNativeAsset(made), "its native main object");
+            Check(ReferenceEquals(AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Made.asset"), made), "loaded as the same object");
+            Equal(1, Documents("Assets/Made.asset"), "one object in its file");
+            var sub = new Texture2D(1, 1) { name = "Sub" };
+            AssetDatabase.AddObjectToAsset(sub, made);
+            Check(AssetDatabase.IsSubAsset(sub) && AssetDatabase.GetAssetPath(sub) == "Assets/Made.asset", "an object added");
+            Check(EditorUtility.IsDirty(made), "the asset dirty until saved");
+            Equal(1, Documents("Assets/Made.asset"), "not written yet");
+            AssetDatabase.SaveAssets();
+            Check(!EditorUtility.IsDirty(made), "saved");
+            Equal(2, Documents("Assets/Made.asset"), "two objects in its file");
+            Equal(2, AssetDatabase.LoadAllAssetsAtPath("Assets/Made.asset").Length, "two objects loaded");
+            AssetDatabase.SetMainObject(sub, "Assets/Made.asset");
+            Check(AssetDatabase.IsMainAsset(sub) && AssetDatabase.IsSubAsset(made), "the main object set");
+            AssetDatabase.RemoveObjectFromAsset(made);
+            Check(!AssetDatabase.Contains(made), "an object removed");
+            AssetDatabase.SaveAssetIfDirty(sub);
+            Equal(1, Documents("Assets/Made.asset"), "one object left in its file");
+            EditorUtility.SetDirty(sub);
+            EditorUtility.SetDirty(sub);
+            // Marked by SetMainObject, RemoveObjectFromAsset and twice here.
+            Equal(4, EditorUtility.GetDirtyCount(sub), "each mark counted");
+            AssetDatabase.SaveAssetIfDirty(AssetDatabase.GUIDFromAssetPath("Assets/Made.asset"));
+            Check(!EditorUtility.IsDirty(sub), "saved by guid");
+            // Made again at the same path: the old one replaced.
+            string oldGuid = AssetDatabase.AssetPathToGUID("Assets/Made.asset");
+            var again = new Texture2D(3, 3) { name = "Again" };
+            AssetDatabase.CreateAsset(again, "Assets/Made.asset");
+            Check(AssetDatabase.AssetPathToGUID("Assets/Made.asset") != oldGuid && AssetDatabase.IsMainAsset(again), "replaced");
+            Equal(new[] { "Assets/Made.asset" }, AssetDatabase.GetDependencies("Assets/Made.asset"), "a native asset depends on itself only");
+            Check(AssetDatabase.GetAssetDependencyHash("Assets/Made.asset").isValid, "its dependency hash");
+            AssetDatabase.DeleteAsset("Assets/Made.asset");
+            HelixEngine.Object.DestroyImmediate(made);
+        }
+
+        static void Labels()
+        {
+            Texture2D t = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Checker.png");
+            Equal(0, AssetDatabase.GetLabels(t).Length, "no labels");
+            AssetDatabase.SetLabels(t, new[] { "Pattern", "Grid", "Grid" });
+            Equal(new[] { "Pattern", "Grid" }, AssetDatabase.GetLabels(t), "labels set once each");
+            string meta = System.IO.File.ReadAllText(System.IO.Path.Combine(EditorApplication.projectPathInternal, "Assets/Textures/Checker.png.meta"));
+            Check(meta.Contains("labels:\n- Pattern\n- Grid\n"), "in the .meta");
+            Equal(new[] { AssetDatabase.AssetPathToGUID("Assets/Textures/Checker.png") }, AssetDatabase.FindAssets("l:grid"), "found by label");
+            Equal(0, AssetDatabase.FindAssets("l:none").Length, "not by another");
+            Equal(new[] { "Grid" }, AssetDatabase.GetLabels(AssetDatabase.GUIDFromAssetPath("Assets/Textures/Checker.png")).AsSpan(1).ToArray(), "by guid");
+            AssetDatabase.ClearLabels(t);
+            Equal(0, AssetDatabase.GetLabels(t).Length, "cleared");
+        }
+
+        static void ImporterTypesAndBatches()
+        {
+            Equal(typeof(TextureImporter), AssetDatabase.GetImporterType("Assets/Textures/Checker.png"), "an asset's importer");
+            Equal(typeof(CubeImporter), AssetDatabase.GetImporterType(AssetDatabase.GUIDFromAssetPath("Assets/Data/Board.cube")), "a scripted one");
+            Equal(typeof(TextureImporter), AssetDatabase.GetDefaultImporter("Assets/Textures/Checker.png"), "the default importer");
+            Check(Array.IndexOf(AssetDatabase.GetAvailableImporters("Assets/Data/Board.cube"), typeof(CubeImporter)) >= 0, "the scripted importer available");
+            Equal(new[] { typeof(TextureImporter), null }, AssetDatabase.GetImporterTypes(new[] { "Assets/Textures/Checker.png", "Assets/None.png" }), "of several");
+            Check(AssetDatabase.CopyAssets(new[] { "Assets/Text/Notes.txt", "Assets/Text/Notes.txt" }, new[] { "Assets/Text/A.txt", "Assets/Text/B.txt" }),
+                  "copied in one batch");
+            Check(AssetDatabase.AssetPathExists("Assets/Text/A.txt") && AssetDatabase.AssetPathExists("Assets/Text/B.txt"), "both copies");
+            Check(!AssetDatabase.CopyAssets(new[] { "Assets/Text/A.txt" }, new string[0]), "lists of different lengths");
+            var failed = new List<string>();
+            Check(!AssetDatabase.DeleteAssets(new[] { "Assets/Text/A.txt", "Assets/Text/None.txt", "Assets/Text/B.txt" }, failed), "one deletion failed");
+            Equal(new[] { "Assets/Text/None.txt" }, failed.ToArray(), "the failed path");
+            Check(!AssetDatabase.AssetPathExists("Assets/Text/A.txt") && !AssetDatabase.AssetPathExists("Assets/Text/B.txt"), "the others deleted");
+            AssetDatabase.DisallowAutoRefresh();
+            AssetDatabase.AllowAutoRefresh();
+        }
+
+        static void ProjectAssets()
+        {
+            var paths = new List<string>(AssetDatabase.GetAllAssetPaths());
+            Check(paths.Contains("Assets/Textures/Checker.png") && paths.Contains("Assets/Text/Notes.txt") && paths.Contains("Assets/Textures"),
+                  "the project's files and folders");
+            string guid = AssetDatabase.AssetPathToGUID("Assets/Textures/Checker.png");
+            Equal(32, guid.Length, "a guid");
+            Equal("Assets/Textures/Checker.png", AssetDatabase.GUIDToAssetPath(guid), "and back");
+            Check(System.IO.File.Exists(System.IO.Path.Combine(EditorApplication.projectPathInternal, "Assets/Textures/Checker.png.meta")), "its .meta written");
+            Equal("TextureImporter", AssetDatabase.ImporterNameInternal("Assets/Textures/Checker.png"), "the texture importer");
+            Equal("TextScriptImporter", AssetDatabase.ImporterNameInternal("Assets/Text/Notes.txt"), "the text importer");
+            var textures = AssetDatabase.FindAssets("t:Texture2D");
+            Check(textures.Length == 1 && textures[0] == guid, "found by type");
+            Equal(1, AssetDatabase.FindAssets("notes", new[] { "Assets/Text" }).Length, "found by name in a folder");
+            Equal(0, AssetDatabase.FindAssets("notes", new[] { "Assets/Textures" }).Length, "not in another folder");
+            Check(AssetDatabase.IsValidFolder("Assets/Text") && !AssetDatabase.IsValidFolder("Assets/Text/Notes.txt"), "folders");
+        }
+
+        static void LoadByPath()
+        {
+            Texture2D t = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Checker.png");
+            Check(t != null && t.width == 4 && t.height == 4, "the texture loaded by its path");
+            Check(AssetDatabase.LoadMainAssetAtPath("Assets/Textures/Checker.png") == t, "its main object");
+            Check(AssetDatabase.LoadAssetAtPath<Material>("Assets/Textures/Checker.png") == null, "no material in it");
+            Check(AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/None.png") == null, "nothing at a missing path");
+        }
+
+        /// <summary>A first run imports the project and writes the artifacts; the second loads from them.</summary>
+        public static void RunArtifactsFirst()
+        {
+            int frames = 0;
+            Action written = null;
+            written = () =>
+            {
+                if (AssetDatabase.ImportsPendingInternal() > 0 && ++frames < 300)
+                {
+                    s_Steps.Enqueue(("the artifacts written", written));
+                    return;
+                }
+                ArtifactsWritten();
+            };
+            s_Steps.Enqueue(("a cube that depends on another file", () =>
+            {
+                string root = EditorApplication.projectPathInternal;
+                System.IO.File.WriteAllText(System.IO.Path.Combine(root, "Assets/Data/Size.txt"), "6");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(root, "Assets/Data/Linked.cube"), "@Assets/Data/Size.txt");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(root, "Assets/Data/Custom.cube"), "%cube-size");
+                AssetDatabase.RegisterCustomDependency("cube-size", Hash128.Compute("one"));
+                AssetDatabase.Refresh();
+            }));
+            s_Steps.Enqueue(("the artifacts written", written));
+            EditorApplication.update += Next;
+        }
+
+        public static void RunArtifactsSecond()
+        {
+            s_Steps.Enqueue(("a stray artifact swept", () => Equal(4, ArtifactFiles(), "only the entries' files")));
+            s_Steps.Enqueue(("the project as it was left", () => Equal(0, TestPostprocessor.s_Refreshes, "no changes reported as it opens")));
+            s_Steps.Enqueue(("loaded from the artifacts", LoadedFromArtifacts));
+            s_Steps.Enqueue(("a changed setting imports again", SettingChanged));
+            s_Steps.Enqueue(("a changed dependency imports again", DependencyChanged));
+            s_Steps.Enqueue(("a custom dependency's new value imports again", CustomChanged));
+            EditorApplication.update += Next;
+        }
+
+        static void ArtifactsWritten()
+        {
+            Equal(0, AssetDatabase.ImportsPendingInternal(), "no imports left");
+            Check(AssetDatabase.ArtifactsWrittenInternal() >= 4, $"the project's assets imported ({AssetDatabase.ArtifactsWrittenInternal()})");
+            Equal("", AssetDatabase.ArtifactPathInternal("Assets/Text/Notes.txt"), "no artifact of a kind without a loader");
+            foreach (string p in new[] { "Assets/Textures/Checker.png", "Assets/Data/Board.cube", "Assets/Data/Linked.cube" })
+            {
+                string a = AssetDatabase.ArtifactPathInternal(p);
+                Check(!string.IsNullOrEmpty(a) && System.IO.File.Exists(a), $"the artifact of {p}");
+            }
+            Check(System.IO.File.Exists(System.IO.Path.Combine(EditorApplication.projectPathInternal, "Library/ArtifactDB.txt")), "the artifact database");
+            Equal(4, ArtifactFiles(), "an artifact each");
+            Equal(new[] { "Assets/Data/Linked.cube", "Assets/Data/Size.txt" }, AssetDatabase.GetDependencies("Assets/Data/Linked.cube"), "the recorded dependencies");
+            Equal(new[] { "Assets/Data/Linked.cube" }, AssetDatabase.GetDependencies("Assets/Data/Linked.cube", false).AsSpan(0, 1).ToArray(), "itself first");
+            // A file no entry names (an editor stopped before it saved its database): swept by the next start.
+            System.IO.Directory.CreateDirectory(System.IO.Path.Combine(ArtifactsFolder, "zz"));
+            System.IO.File.WriteAllText(System.IO.Path.Combine(ArtifactsFolder, "zz", "zz000000000000000000000000000000"), "stray");
+        }
+
+        static void LoadedFromArtifacts()
+        {
+            Equal(0, AssetDatabase.ImportsPendingInternal(), "nothing to import");
+            Equal(0, AssetDatabase.ArtifactsWrittenInternal(), "no artifact written again");
+            Texture2D t = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Checker.png");
+            Check(t != null && t.width == 4, "the texture from its artifact");
+            Texture2D b = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Data/Board.cube");
+            Check(b != null && b.width == 8 && b.name == "Board", "the scripted importer's texture from its artifact");
+            Texture2D l = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Data/Linked.cube");
+            Check(l != null && l.width == 6, "the size from the file it depends on");
+        }
+
+        // Steps that run once the imports in progress finished (or 300 frames passed).
+        static void AfterImports(string name, Action step)
+        {
+            int frames = 0;
+            Action wait = null;
+            wait = () =>
+            {
+                if (AssetDatabase.ImportsPendingInternal() > 0 && ++frames < 300)
+                {
+                    s_Steps.Enqueue((name, wait));
+                    return;
+                }
+                step();
+            };
+            s_Steps.Enqueue((name, wait));
+        }
+
+        static string ArtifactsFolder => System.IO.Path.Combine(EditorApplication.projectPathInternal, "Library/Artifacts");
+
+        static int ArtifactFiles() =>
+            System.IO.Directory.Exists(ArtifactsFolder) ? System.IO.Directory.GetFiles(ArtifactsFolder, "*", System.IO.SearchOption.AllDirectories).Length : 0;
+
+        static void DependencyChanged()
+        {
+            string before = AssetDatabase.ArtifactPathInternal("Assets/Data/Linked.cube");
+            Texture2D l = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Data/Linked.cube");
+            System.IO.File.WriteAllText(System.IO.Path.Combine(EditorApplication.projectPathInternal, "Assets/Data/Size.txt"), "5");
+            AssetDatabase.Refresh();
+            Check(l != null && l.width == 5, "the loaded dependent imported again into its object");
+            AfterImports("the dependent's new artifact", () =>
+            {
+                string after = AssetDatabase.ArtifactPathInternal("Assets/Data/Linked.cube");
+                Check(!string.IsNullOrEmpty(after) && after != before, "a new artifact of the dependent");
+                Check(!string.IsNullOrEmpty(AssetDatabase.ArtifactPathInternal("Assets/Data/Board.cube")), "the other cube's artifact kept");
+                Check(!System.IO.File.Exists(before), "the superseded artifact removed");
+                Equal(4, ArtifactFiles(), "one artifact a loaded asset");
+                // A deleted asset's artifact goes with it.
+                string board = AssetDatabase.ArtifactPathInternal("Assets/Data/Board.cube");
+                Check(AssetDatabase.DeleteAsset("Assets/Data/Board.cube"), "the cube deleted");
+                Check(!System.IO.File.Exists(board), "the deleted asset's artifact removed");
+                Equal(3, ArtifactFiles(), "the artifacts left");
+            });
+        }
+
+        static void CustomChanged()
+        {
+            string before = AssetDatabase.ArtifactPathInternal("Assets/Data/Custom.cube");
+            Hash128 hash = AssetDatabase.GetAssetDependencyHash("Assets/Data/Custom.cube");
+            Check(!string.IsNullOrEmpty(before), "the custom cube's artifact");
+            // The same value: nothing to import.
+            AssetDatabase.RegisterCustomDependency("cube-size", Hash128.Compute("one"));
+            AssetDatabase.Refresh();
+            Equal(before, AssetDatabase.ArtifactPathInternal("Assets/Data/Custom.cube"), "the same value keeps the artifact");
+            AssetDatabase.RegisterCustomDependency("cube-size", Hash128.Compute("two"));
+            AssetDatabase.Refresh();
+            Equal("", AssetDatabase.ArtifactPathInternal("Assets/Data/Custom.cube"), "a new value: no longer current");
+            AfterImports("the custom cube's new artifact", () =>
+            {
+                string after = AssetDatabase.ArtifactPathInternal("Assets/Data/Custom.cube");
+                Check(!string.IsNullOrEmpty(after) && after != before, "a new artifact");
+                Check(AssetDatabase.GetAssetDependencyHash("Assets/Data/Custom.cube") != hash, "a new dependency hash");
+                Equal(1u, AssetDatabase.UnregisterCustomDependencyPrefixFilter("cube-"), "unregistered by prefix");
+            });
+        }
+
+        static void SettingChanged()
+        {
+            var importer = (TextureImporter)AssetImporter.GetAtPath("Assets/Textures/Checker.png");
+            string before = AssetDatabase.ArtifactPathInternal("Assets/Textures/Checker.png");
+            importer.maxTextureSize = 1024;
+            importer.SaveAndReimport();
+            // A loaded asset is imported again at once (its artifact written as it integrates).
+            int frames = 0;
+            Action newArtifact = null;
+            newArtifact = () =>
+            {
+                // The import finishes on a later frame (its decode runs on jobs).
+                if (AssetDatabase.ImportsPendingInternal() > 0 && ++frames < 300)
+                {
+                    s_Steps.Enqueue(("the new artifact", newArtifact));
+                    return;
+                }
+                string after = AssetDatabase.ArtifactPathInternal("Assets/Textures/Checker.png");
+                Check(!string.IsNullOrEmpty(after) && after != before, "a new artifact under a new key");
+                Texture2D t = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Checker.png");
+                Check(t != null && t.width == 4, "the texture after its reimport");
+            };
+            s_Steps.Enqueue(("the new artifact", newArtifact));
+        }
+
+        static void ScriptedImport()
+        {
+            Equal("ScriptedImporter", AssetDatabase.ImporterNameInternal("Assets/Data/Board.cube"), "the .meta's section");
+            var importer = AssetImporter.GetAtPath("Assets/Data/Board.cube");
+            Check(importer is CubeImporter, $"the importer's class ({importer?.GetType().Name})");
+            Texture2D t = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Data/Board.cube");
+            Check(t != null && t.width == 8 && t.height == 8, "the importer's texture of the file's size");
+            Check(t != null && t.name == "Board", "named by the importer");
+            Check(AssetDatabase.LoadMainAssetAtPath("Assets/Data/Board.cube") == t, "its main object");
+            Check(AssetDatabase.FindAssets("board").Length == 1, "found");
+        }
+
+        static void ImporterSettings()
+        {
+            var importer = AssetImporter.GetAtPath("Assets/Textures/Checker.png") as TextureImporter;
+            Check(importer != null, "a TextureImporter");
+            if (importer == null)
+                return;
+            Check(!importer.isReadable && importer.mipmapEnabled && importer.maxTextureSize == 2048, "the defaults of its .meta");
+            Texture2D before = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Checker.png");
+            Check(before != null && !before.isReadable, "not readable as imported");
+            importer.isReadable = true;
+            importer.filterMode = FilterMode.Point;
+            importer.userData = "kept";
+            importer.SaveAndReimport();
+            var again = AssetImporter.GetAtPath("Assets/Textures/Checker.png") as TextureImporter;
+            Check(again.isReadable && again.filterMode == FilterMode.Point && again.userData == "kept", "the settings in its .meta");
+            Texture2D after = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Checker.png");
+            Check(after == before, "the same texture object");
+            Check(after != null && after.isReadable && after.filterMode == FilterMode.Point, "imported again with them");
+            var model = AssetImporter.GetAtPath("Assets/Text/Notes.txt");
+            Check(model != null && model.GetType() == typeof(AssetImporter), "a text file's plain importer");
+            Check(AssetImporter.GetAtPath("Assets/None.png") == null, "none for no asset");
+        }
+
+        static void FoldersAndMoves()
+        {
+            string guid = AssetDatabase.AssetPathToGUID("Assets/Textures/Checker.png");
+            string folder = AssetDatabase.CreateFolder("Assets", "Art");
+            Check(folder.Length == 32 && AssetDatabase.IsValidFolder("Assets/Art"), "a folder made");
+            Equal("", AssetDatabase.MoveAsset("Assets/Textures/Checker.png", "Assets/Art/Checker.png"), "moved");
+            Equal(guid, AssetDatabase.AssetPathToGUID("Assets/Art/Checker.png"), "the guid stays");
+            Check(AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Art/Checker.png") != null, "loaded from its new place");
+            Equal("", AssetDatabase.RenameAsset("Assets/Art/Checker.png", "Board"), "renamed");
+            Check(AssetDatabase.AssetPathExists("Assets/Art/Board.png"), "with its extension");
+            using (new AssetDatabase.AssetEditingScope())
+                Check(AssetDatabase.CopyAsset("Assets/Art/Board.png", "Assets/Art/Board 2.png"), "copied");
+            Check(AssetDatabase.AssetPathToGUID("Assets/Art/Board 2.png") != guid, "the copy's own guid");
+            Check(AssetDatabase.DeleteAsset("Assets/Art/Board 2.png") && !AssetDatabase.AssetPathExists("Assets/Art/Board 2.png"), "deleted");
+        }
+
         /// <summary>The tests of floating windows in windows of their own (the editor with its window, no batch mode).</summary>
         public static void RunWindowed()
         {
@@ -89,6 +723,10 @@ namespace HelixEditor.Tests
             s_Steps.Enqueue(("floating a tab", FloatInWindow));
             s_Steps.Enqueue(("a frame", () => { }));
             s_Steps.Enqueue(("its window", FloatingWindowShown));
+            s_Steps.Enqueue(("its area menu", OpenFloatingMenu));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("a frame", () => { }));
+            s_Steps.Enqueue(("the menu in a popup window", FloatingMenuShown));
             s_Steps.Enqueue(("its only tab moves it", DragOnlyTab));
             s_Steps.Enqueue(("a frame", () => { }));
             s_Steps.Enqueue(("after moving it by its tab", AfterDragOnlyTab));
@@ -133,6 +771,31 @@ namespace HelixEditor.Tests
             Check(v.root.FindAll(null, "dock-tab").Count == 1, "the inspector's tab in it");
             Check(v.root.Find(null, "dock-tab-strip")?.ClassListContains("editor-caption") == true, "its strip moves the window");
             Check(HelixEngine.Display.displays.Length > v.display && HelixEngine.Display.displays[v.display].active, "an active display");
+        }
+
+        static void OpenFloatingMenu()
+        {
+            DockView v = FloatingView();
+            Element menu = v?.root.Find(null, "dock-area-menu");
+            Check(menu != null, "the floating window's area menu button");
+            if (menu != null)
+                Send<PointerDownEvent>(menu, Center(menu.worldBound));
+            Check(PopupMenuWindow.isOpen, "a popup window opened");
+        }
+
+        static void FloatingMenuShown()
+        {
+            Check(PopupMenuWindow.isOpen, "the popup window stays");
+            int popup = PopupMenuWindow.displayInternal;
+            Check(popup > 0, $"its display ({popup})");
+            if (popup <= 0)
+                return;
+            Rect r = EditorApplication.DisplayRectInternal(popup);
+            Check(r.width >= 60 && r.height >= 40 && !(r.width == 200 && r.height == 120), $"sized to the menu ({r.width} x {r.height})");
+            Element popupRoot = PopupMenuWindow.rootInternal;
+            Check(popupRoot != null && popupRoot.FindAll(null, GenericDropdownMenu.itemHssClassName).Count >= 3, "the menu's items in it");
+            PopupMenuWindow.CloseInternal();
+            Check(!PopupMenuWindow.isOpen, "closed");
         }
 
         static Rect s_BeforeTabDrag;

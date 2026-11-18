@@ -21,7 +21,7 @@
     "toolbarHeight": 30, "toolButtonWidth": 28, "toolButtonHeight": 22, "toolIconSize": 16, "toolbarDropdownHeight": 20,
     "toolbarDropdownWidth": 90, "toolbarGap": 6,
     "tabStripHeight": 21, "tabHeight": 19, "tabActiveHeight": 21, "tabPadding": 8, "tabIconSize": 14, "tabCloseSize": 12,
-    "windowToolbarHeight": 21, "windowControlHeight": 17, "windowIconSize": 14, "windowSearchWidth": 140, "windowDropdownWidth": 60, "windowDropdownWideWidth": 100, "windowPadding": 6,
+    "windowToolbarHeight": 23, "windowControlHeight": 18, "windowIconSize": 14, "windowSearchWidth": 140, "windowDropdownWidth": 60, "windowDropdownWideWidth": 100, "windowPadding": 6,
     "statusBarHeight": 20, "statusLogoSize": 14,
     "splitterSize": 3, "areaMinSize": 60, "floatPadding": 12,
     "dragThreshold": 6, "floatWidth": 360, "floatHeight": 260, "floatGrabX": 40, "floatGrabY": 10,
@@ -47,6 +47,11 @@
     "MenuItemHover": {"size": [24, 24], "slice": 6, "top": "#4596e8", "bottom": "#2f72c0", "border": null, "radius": 2, "highlight": "#ffffff30", "shade": null},
     "CaptionButtonHover": {"size": [24, 24], "slice": 6, "top": "#4a4a4a", "bottom": "#3a3a3a", "border": null, "highlight": "#ffffff18", "shade": null},
     "CaptionCloseHover":  {"size": [24, 24], "slice": 6, "top": "#e04848", "bottom": "#b42c2c", "border": null, "highlight": "#ffffff30", "shade": null},
+    "WindowToolbar": {"size": [24, 24], "slice": 4, "top": "#393939", "bottom": "#323232", "border": null, "highlight": "#ffffff0e", "shade": "#191919"},
+    "ToolbarDropdown": {"size": [16, 16], "slice": 4, "top": "#2d2d2d", "bottom": "#282828", "border": "#1a1a1a", "radius": 2, "highlight": null, "shade": "#ffffff10"},
+    "ToolbarButtonHover": {"size": [16, 16], "slice": 4, "top": "#4b4b4b", "bottom": "#414141", "border": null, "radius": 2, "highlight": "#ffffff14", "shade": null},
+    "ToolbarButtonOn": {"size": [16, 16], "slice": 4, "top": "#232323", "bottom": "#2a2a2a", "border": "#161616", "radius": 2, "highlight": null, "shade": "#ffffff10", "inner": "#00000080"},
+    "SearchField": {"size": [24, 20], "slice": 9, "top": "#1d1d1d", "bottom": "#242424", "border": "#141414", "radius": 9, "highlight": null, "shade": "#ffffff12", "inner": "#00000090"},
     "Shadow":        {"size": [48, 48], "slice": 20, "top": "#00000000", "bottom": "#00000000", "border": null, "highlight": null, "shade": null, "drop": 12}
   }
 }

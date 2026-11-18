@@ -131,6 +131,36 @@ namespace HelixEditor
             return made;
         }
 
+        /// <summary>The open one, else a new one docked as a tab beside the first open window of the types given.</summary>
+        public static T GetWindow<T>(string title, params Type[] desiredDockNextTo) where T : EditorWindow => GetWindow<T>(title, true, desiredDockNextTo);
+
+        public static T GetWindow<T>(string title, bool focus, params Type[] desiredDockNextTo) where T : EditorWindow
+        {
+            foreach (EditorWindow w in s_Windows)
+                if (w is T found)
+                {
+                    if (focus)
+                        found.Focus();
+                    return found;
+                }
+            return CreateWindow<T>(title, desiredDockNextTo);
+        }
+
+        public static T CreateWindow<T>(params Type[] desiredDockNextTo) where T : EditorWindow => CreateWindow<T>(null, desiredDockNextTo);
+
+        public static T CreateWindow<T>(string title, params Type[] desiredDockNextTo) where T : EditorWindow
+        {
+            T w = (T)Make(typeof(T));
+            if (title != null)
+                w.titleContent = new GuiContent(title);
+            if (desiredDockNextTo != null)
+                foreach (Type t in desiredDockNextTo)
+                    if (t != null && Docking.DockManager.DockBeside(w, t.Name))
+                        break;
+            w.Show();
+            return w;
+        }
+
         public static T CreateWindow<T>(string title = null) where T : EditorWindow
         {
             T w = (T)Make(typeof(T));

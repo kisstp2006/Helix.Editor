@@ -1,13 +1,13 @@
 <HXML>
   <!-- The Game view: its toolbar (display, aspect, scale, play focus, stats, Gizmos) over the viewport. -->
-  <Element class="window-toolbar hx-toolbar">
-    <Button class="window-dropdown hx-dropdown"><Label text="Display 1"/><Element class="icon arrow-down"/></Button>
-    <Button class="window-dropdown hx-dropdown wide"><Label text="Free Aspect"/><Element class="icon arrow-down"/></Button>
-    <Button class="window-dropdown hx-dropdown"><Label text="Scale 1x"/><Element class="icon arrow-down"/></Button>
+  <Element class="window-toolbar">
+    <Button class="window-dropdown"><Label text="Display 1"/><Element class="icon arrow-down"/></Button>
+    <Button class="window-dropdown wide"><Label text="Free Aspect"/><Element class="icon arrow-down"/></Button>
+    <Button class="window-dropdown"><Label text="Scale 1x"/><Element class="icon arrow-down"/></Button>
     <Element class="window-fill"/>
-    <Button class="window-dropdown hx-dropdown wide"><Label text="Play Focused"/><Element class="icon arrow-down"/></Button>
-    <Button class="window-tool hx-button"><Label text="Stats"/></Button>
-    <Button class="window-dropdown hx-dropdown"><Label text="Gizmos"/><Element class="icon arrow-down"/></Button>
+    <Button class="window-dropdown wide"><Label text="Play Focused"/><Element class="icon arrow-down"/></Button>
+    <Button class="window-tool"><Label text="Stats"/></Button>
+    <Button class="window-dropdown"><Label text="Gizmos"/><Element class="icon arrow-down"/></Button>
   </Element>
   <Element class="window-content viewport"><Label class="window-note" text="The game view comes with step 5."/></Element>
 </HXML>

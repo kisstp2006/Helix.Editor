@@ -1,0 +1,7 @@
+<HXML>
+  <!-- A popup menu's window (menus of the floating windows): the menu over its whole client area. -->
+  <Style src="../Skin/HelixClassic.hss"/>
+  <Style src="../Skin/Icons.hss"/>
+  <Style src="Shell.hss"/>
+  <Element name="popup" class="shell popup-window"/>
+</HXML>

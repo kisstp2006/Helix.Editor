@@ -116,7 +116,15 @@ ${editor_modules_rows}    };
         helix_add_test_suite(helix_editor_tests DEPS Helix::EngineShared Helix::Platform)
         target_sources(helix_editor_tests PRIVATE "${editor_source}/Helix/Editor/Shell/Implementation/EditorMenus.cpp"
                        "${editor_source}/Helix/Editor/Shell/Implementation/EditorToolbar.cpp"
-                       "${editor_source}/Helix/Editor/Application/Implementation/EditorPrefs.cpp")
+                       "${editor_source}/Helix/Editor/Application/Implementation/EditorPrefs.cpp"
+                       "${editor_source}/Helix/Editor/Application/Implementation/EditorUtility.cpp"
+                       "${editor_source}/Helix/Editor/Assets/Implementation/MetaFile.cpp"
+                       "${editor_source}/Helix/Editor/Assets/Implementation/AssetImporters.cpp"
+                       "${editor_source}/Helix/Editor/Assets/Implementation/ProjectDatabase.cpp"
+                       "${editor_source}/Helix/Editor/Assets/Implementation/AssetDatabase.cpp"
+                       "${editor_source}/Helix/Editor/Assets/Implementation/ImportNative.cpp"
+                       "${editor_source}/Helix/Editor/Assets/Implementation/ArtifactStore.cpp"
+                       "${editor_source}/Helix/Editor/Assets/Implementation/AssetModification.cpp")
         target_include_directories(helix_editor_tests PRIVATE "${editor_source}")
         # The editor in batch mode, its screenshot against Tests/Golden (drawn with the machine's fonts: compared only
         # off CI).
@@ -140,6 +148,14 @@ ${editor_modules_rows}    };
                  COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:helix_editor>" "-DPROJECT=${CMAKE_CURRENT_SOURCE_DIR}/Tests/Projects/Empty"
                          "-DWORK=${CMAKE_CURRENT_BINARY_DIR}/csharp" "-DMETHOD=HelixEditor.Tests.EditorTests.Run"
                          -P "${CMAKE_CURRENT_SOURCE_DIR}/Tests/RunEditorTests.cmake")
+        add_test(NAME helix_editor_csharp_assets
+                 COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:helix_editor>" "-DPROJECT=${CMAKE_CURRENT_SOURCE_DIR}/Tests/Projects/Basic"
+                         "-DWORK=${CMAKE_CURRENT_BINARY_DIR}/csharp-assets" "-DMETHOD=HelixEditor.Tests.EditorTests.RunAssets"
+                         -P "${CMAKE_CURRENT_SOURCE_DIR}/Tests/RunEditorTests.cmake")
+        add_test(NAME helix_editor_csharp_artifacts
+                 COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:helix_editor>" "-DPROJECT=${CMAKE_CURRENT_SOURCE_DIR}/Tests/Projects/Basic"
+                         "-DWORK=${CMAKE_CURRENT_BINARY_DIR}/csharp-artifacts" "-DMETHOD=HelixEditor.Tests.EditorTests.RunArtifactsFirst"
+                         "-DMETHOD2=HelixEditor.Tests.EditorTests.RunArtifactsSecond" -P "${CMAKE_CURRENT_SOURCE_DIR}/Tests/RunEditorTests.cmake")
         add_test(NAME helix_editor_csharp_windowed
                  COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:helix_editor>" "-DPROJECT=${CMAKE_CURRENT_SOURCE_DIR}/Tests/Projects/Empty"
                          "-DWORK=${CMAKE_CURRENT_BINARY_DIR}/csharp-windowed" "-DMETHOD=HelixEditor.Tests.EditorTests.RunWindowed" "-DWINDOWED=1"
@@ -154,7 +170,7 @@ ${editor_modules_rows}    };
         # The .NET runtime is never unloaded: LeakSanitizer is told about its modules.
         if(HELIX_ENABLE_ASAN AND HELIX_PLATFORM STREQUAL "linux")
             helix_dependency_dir(editor_scripting_dir Scripting)
-            set_tests_properties(helix_editor_csharp helix_editor_csharp_windowed helix_editor_shell_standard helix_editor_shell_physical PROPERTIES
+            set_tests_properties(helix_editor_csharp helix_editor_csharp_assets helix_editor_csharp_artifacts helix_editor_csharp_windowed helix_editor_shell_standard helix_editor_shell_physical PROPERTIES
                                  ENVIRONMENT "LSAN_OPTIONS=suppressions=${editor_scripting_dir}/Tests/Support/LeakSuppressions.txt")
         endif()
     endif()
