@@ -1,0 +1,9 @@
+layout 1
+split column 0.7 0.3
+  split row 0.75 0.25
+    area 0 SceneView GameView
+    area 0 InspectorWindow
+  split row 0.3 0.4 0.3
+    area 0 HierarchyWindow
+    area 0 ProjectWindow
+    area 0 ConsoleWindow

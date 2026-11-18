@@ -199,6 +199,7 @@ namespace helix::editor
         if (window)
             window->SetHitTest(&HitTest, nullptr);
         EditorApplication::SetHost(window, editor.projectPath.View(), platform::ExecutablePath().View());
+        EditorApplication::SetDataPath(options.dataFolder.View());
         engine::FolderAssetSource* shaders = LoadShaders();
         engine::ScriptableObject* asset = nullptr;
         for (const PipelineEntry& p : kPipelines)

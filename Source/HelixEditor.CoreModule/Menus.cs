@@ -30,6 +30,20 @@ namespace HelixEditor
         public static bool GetChecked(string menuPath) => EditorMenus.GetChecked(menuPath);
         public static void SetChecked(string menuPath, bool isChecked) => EditorMenus.SetChecked(menuPath, isChecked);
         public static bool MenuItemExists(string menuPath) => EditorMenus.Exists(menuPath);
+
+        /// <summary>An item made at run time (the layouts' items, a plugin's), run by the action.</summary>
+        public static void AddMenuItem(string name, string shortcut, bool isChecked, int priority, Action execute, Func<bool> validate)
+        {
+            MenuItems.Add(name, execute, validate);
+            EditorMenus.AddManagedInternal(name, priority, shortcut ?? "", true);
+            EditorMenus.SetChecked(name, isChecked);
+        }
+
+        public static void RemoveMenuItem(string name)
+        {
+            MenuItems.Remove(name);
+            EditorMenus.Remove(name);
+        }
     }
 
     // The menu items of C#: every assembly's MenuItem methods registered in the native registry, run and validated here.
@@ -37,6 +51,10 @@ namespace HelixEditor
     {
         static readonly Dictionary<string, MethodInfo> s_Execute = new();
         static readonly Dictionary<string, MethodInfo> s_Validate = new();
+        static readonly Dictionary<string, (Action execute, Func<bool> validate)> s_Actions = new();
+
+        internal static void Add(string path, Action execute, Func<bool> validate) => s_Actions[path] = (execute, validate);
+        internal static void Remove(string path) => s_Actions.Remove(path);
         static bool s_Hooked;
 
 #pragma warning disable CA2255
@@ -51,15 +69,33 @@ namespace HelixEditor
             s_Hooked = true;
             EditorMenus.managedExecute += path =>
             {
-                if (s_Execute.TryGetValue(path, out MethodInfo m))
+                if (s_Actions.TryGetValue(path, out var action))
+                    Safe(() => action.execute?.Invoke());
+                else if (s_Execute.TryGetValue(path, out MethodInfo m))
                     Run(m);
             };
             EditorMenus.managedValidate += path =>
             {
-                bool ok = !s_Validate.TryGetValue(path, out MethodInfo m) || Run(m) is bool b && b;
+                bool ok;
+                if (s_Actions.TryGetValue(path, out var action))
+                    ok = action.validate == null || action.validate();
+                else
+                    ok = !s_Validate.TryGetValue(path, out MethodInfo m) || Run(m) is bool b && b;
                 EditorMenus.SetValidatedInternal(ok);
             };
             ScriptBridge.OnAssembly(Scan);
+        }
+
+        static void Safe(Action a)
+        {
+            try
+            {
+                a();
+            }
+            catch (Exception e)
+            {
+                HelixEngine.Debug.LogException(e);
+            }
         }
 
         static object Run(MethodInfo m)

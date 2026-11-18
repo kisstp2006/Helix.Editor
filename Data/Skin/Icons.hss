@@ -17,3 +17,15 @@
 .icon-menu { background-image: url("Icons/Menu.png"); }
 .icon-help { background-image: url("Icons/Help.png"); }
 .icon-layers { background-image: url("Icons/Layers.png"); }
+.icon-light { background-image: url("Icons/Light.png"); }
+.icon-effects { background-image: url("Icons/Effects.png"); }
+.icon-grid { background-image: url("Icons/Grid.png"); }
+.icon-info { background-image: url("Icons/Info.png"); }
+.icon-warning { background-image: url("Icons/Warning.png"); }
+.icon-error { background-image: url("Icons/Error.png"); }
+.icon-window-hierarchy-window { background-image: url("Icons/WindowHierarchyWindow.png"); }
+.icon-window-scene-view { background-image: url("Icons/WindowSceneView.png"); }
+.icon-window-game-view { background-image: url("Icons/WindowGameView.png"); }
+.icon-window-inspector-window { background-image: url("Icons/WindowInspectorWindow.png"); }
+.icon-window-project-window { background-image: url("Icons/WindowProjectWindow.png"); }
+.icon-window-console-window { background-image: url("Icons/WindowConsoleWindow.png"); }

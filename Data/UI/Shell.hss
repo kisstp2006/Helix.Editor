@@ -61,3 +61,51 @@
 
 /* The popup menus' look (the dropdown menu's own classes). */
 .helix-dropdown-menu__container-outer { background-image: url("../Skin/HelixClassic/Menu.png"); -helix-slice-left: 16; -helix-slice-top: 16; -helix-slice-right: 16; -helix-slice-bottom: 16; padding: 6px; }
+
+/* Docking: splits, splitters, dock areas with their tab strips, floating containers, the drop indicator. */
+.dock-root { position: relative; }
+.dock-docked { flex-grow: 1; flex-direction: row; }
+.dock-docked > * { flex-grow: 1; }
+.dock-floating-layer { position: absolute; left: 0px; top: 0px; right: 0px; bottom: 0px; }
+.dock-split { flex-direction: row; align-items: stretch; }
+.dock-split.column { flex-direction: column; }
+.dock-splitter { flex-shrink: 0; background-color: var(--hx-window); }
+.dock-splitter.row { width: 4px; cursor: resize-horizontal; }
+.dock-splitter.column { height: 4px; cursor: resize-vertical; }
+.dock-area { flex-direction: column; min-width: 60px; min-height: 60px; }
+.dock-tab-strip { flex-direction: row; align-items: flex-end; height: 30px; flex-shrink: 0; padding-left: 2px; }
+.dock-tab { flex-direction: row; align-items: center; height: 27px; padding-left: 10px; padding-right: 14px; margin-right: 1px; }
+.dock-tab.active { height: 29px; }
+.dock-tab-icon { width: 16px; height: 16px; margin-right: 6px; -helix-background-scale-mode: scale-to-fit; -helix-background-image-tint-color: var(--hx-text); }
+.dock-tab-label { color: var(--hx-text-dim); font-size: 13px; }
+.dock-tab.active .dock-tab-label { color: var(--hx-text-strong); }
+.dock-tab-fill { flex-grow: 1; }
+.dock-content { flex-grow: 1; flex-direction: column; }
+.editor-window-root { flex-grow: 1; flex-direction: column; }
+.dock-floating { position: absolute; flex-direction: column; padding: 12px; }
+.dock-floating > .dock-area, .dock-floating > .dock-split { flex-grow: 1; }
+.dock-drop-indicator { position: absolute; background-color: rgba(58, 142, 230, 0.25); border-width: 2px; border-color: var(--hx-accent); }
+
+/* The windows' toolbars and content. */
+.window-toolbar { flex-direction: row; align-items: center; height: 30px; flex-shrink: 0; padding-left: 6px; padding-right: 6px; }
+.window-dropdown { flex-direction: row; align-items: center; height: 22px; min-width: 70px; margin: 0px; margin-right: 6px; padding-left: 8px; padding-right: 6px; border-width: 0px; }
+.window-dropdown Label { flex-grow: 1; color: var(--hx-text); }
+.window-tool { flex-direction: row; align-items: center; justify-content: center; height: 22px; min-width: 26px; margin: 0px; margin-right: 4px; padding-left: 5px; padding-right: 5px; border-width: 0px; }
+.window-tool Label { color: var(--hx-text); margin-left: 2px; }
+.window-tool.on { background-image: url("../Skin/HelixClassic/ButtonOn.png"); -helix-slice-left: 7; -helix-slice-top: 7; -helix-slice-right: 7; -helix-slice-bottom: 7; }
+.window-tool .icon { width: 16px; height: 16px; }
+.window-search { flex-direction: row; align-items: center; height: 22px; min-width: 160px; flex-grow: 0.4; margin-left: 6px; margin-right: 6px; padding-left: 6px; }
+.window-search .icon { width: 14px; height: 14px; -helix-background-image-tint-color: var(--hx-text-dim); }
+.window-search-text { color: var(--hx-text-dim); margin-left: 4px; }
+.window-fill { flex-grow: 1; }
+.window-content { flex-grow: 1; padding: 10px; }
+.window-content.viewport { background-color: #2b3440; align-items: center; justify-content: center; }
+.window-note { color: var(--hx-text-dim); -helix-font-style: italic; }
+.icon-error { -helix-background-image-tint-color: #e05252; }
+.icon-warning { -helix-background-image-tint-color: #e8b33a; }
+.icon-info { -helix-background-image-tint-color: #c8c8c8; }
+.project-body { flex-grow: 1; flex-direction: row; }
+.project-tree { width: 200px; flex-shrink: 0; padding: 8px; border-right-width: 1px; border-right-color: var(--hx-separator); }
+.project-folder { padding: 3px; color: var(--hx-text); }
+.project-grid { flex-grow: 1; padding: 8px; }
+.project-breadcrumb { color: var(--hx-text-strong); margin-bottom: 10px; }

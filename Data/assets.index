@@ -1,5 +1,10 @@
 # The editor's data folder: every file, its guid and its path (Tools/GenerateData.py).
 f466f5f47ad04676f7833e282a07a153 Images/HelixLogo.png
+f87d75247cdc13e0731cb133a8cf1632 Layouts/2 by 3.layout
+ff8af3129edaa73d08e42397b3df0d27 Layouts/4 Split.layout
+9fcaa4bfc33f1c58c65c77f1d6b7b4b9 Layouts/Default.layout
+64a3dc0a077d33ec3efc36672eb752a3 Layouts/Tall.layout
+55151b19baa54bb0dd7c22d46fcfe6dd Layouts/Wide.layout
 198bfa1cb976d62f0d0e6cd255bccac4 Scenes/Editor.helix
 89efaaa2072673663bb33202c058ffda Scripts/EditorShell.asset
 0e7116487177f75ed43a634f126647ba Scripts/UIView.asset
@@ -27,8 +32,13 @@ ce4a9d8c2d93902e2f36ca68e734a16f Skin/HelixClassic/Toolbar.png
 292c18512e347db8d0330543f9474d6d Skin/Icons.hss
 a54681b83cdedde4182aa809c285e00b Skin/Icons/ArrowDown.png
 5452c9c3192bd23f1bd9202cce78a0af Skin/Icons/Close.png
+348417ee85cb573cc90002893e42eb19 Skin/Icons/Effects.png
+58b2abf703d2c50ddbae6cc5a9ea3e64 Skin/Icons/Error.png
+e36789220ebd88cbdc001b07fca246a5 Skin/Icons/Grid.png
 215d0e9f7d8c61b4f322c0fb90df7c75 Skin/Icons/Help.png
+a10a8c089328c19987c7cc3b24e1f33a Skin/Icons/Info.png
 bc02833f8bbc31be5a3b7caac9b93427 Skin/Icons/Layers.png
+a4c63cc09f6334779bd6adedaaffcbb1 Skin/Icons/Light.png
 83f8fb49fea866c22392fafcb9fab05a Skin/Icons/Lock.png
 b330c1f8df03bd964090985bf8598e39 Skin/Icons/Maximize.png
 f09e62427b525eec8942da68c4cf4e6a Skin/Icons/Menu.png
@@ -43,5 +53,12 @@ e55f18f55c6d9315e12c90c9ce78867a Skin/Icons/ToolRect.png
 97d10422345c3b350be4572d771fe916 Skin/Icons/ToolRotate.png
 b2523ad6d539560b1e13cc7881734909 Skin/Icons/ToolScale.png
 9b976b737970d537364684dab1548876 Skin/Icons/ToolView.png
+3b977ac51f586c439afcb1287a22b0a1 Skin/Icons/Warning.png
+860f8dde4d94eb8d3ff4da6884aa85b1 Skin/Icons/WindowConsoleWindow.png
+2d5693f64b0186978ee7fbd3ec75275b Skin/Icons/WindowGameView.png
+6d0820cc1d96f646913624fb0181e8eb Skin/Icons/WindowHierarchyWindow.png
+de587991aa75616a9b7fefede3151ef8 Skin/Icons/WindowInspectorWindow.png
+f0c28bcda6f4589da04cc11a95759c26 Skin/Icons/WindowProjectWindow.png
+49cd6f89483f6f09b008d2d2d606978b Skin/Icons/WindowSceneView.png
 bc2fb8b4243a36e9b1129da57f0cf40e UI/Shell.hss
 331c939610bc2838b20b0b2817647387 UI/Shell.hxml

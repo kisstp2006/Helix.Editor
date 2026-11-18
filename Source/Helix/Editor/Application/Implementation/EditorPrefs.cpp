@@ -153,7 +153,7 @@ namespace helix::editor
                 e = &S().entries[S().entries.Size() - 1];
             }
             e->kind = kind;
-            e->value = std::move(value);
+            e->value = Move(value);
             Save();
         }
     }

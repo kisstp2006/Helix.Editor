@@ -59,12 +59,6 @@ namespace HelixEditor
         [MenuItem("Component/Add... %#a", false, 0)] static void AddComponent() { }
         [MenuItem("Component/Add... %#a", true)] static bool AddComponentValid() => Later();
 
-        [MenuItem("Window/Layouts/Default", false, 0)] static void LayoutDefault() { }
-        [MenuItem("Window/Layouts/Default", true)] static bool LayoutDefaultValid() => Later();
-        [MenuItem("Window/General/Scene", false, 11)] static void SceneWindow() { }
-        [MenuItem("Window/General/Scene", true)] static bool SceneWindowValid() => Later();
-        [MenuItem("Window/General/Console %#c", false, 12)] static void ConsoleWindow() { }
-        [MenuItem("Window/General/Console %#c", true)] static bool ConsoleWindowValid() => Later();
 
         [MenuItem("Help/About Helix", false, 0)] static void About() => EditorShell.Status("Helix Engine: an engine of its own with the same API and editor.");
         [MenuItem("Help/Helix Manual", false, 1)] static void Manual() { }
@@ -102,6 +96,6 @@ namespace HelixEditor
         static MainToolbarElement Layers() => new MainToolbarDropdown(new MainToolbarContent("Layers", null, "Visible and pickable layers"), r => EditorShell.Status("Layers come with the scene view."));
 
         [MainToolbarElement("Editor/Layout", MainToolbarDockPosition.Right, 1)]
-        static MainToolbarElement Layout() => new MainToolbarDropdown(new MainToolbarContent("Layout", null, "The window layout"), r => EditorShell.Status("Layouts come with docking."));
+        static MainToolbarElement Layout() => new MainToolbarDropdown(new MainToolbarContent("Layout", null, "The window layout"), EditorShell.OpenLayoutMenu);
     }
 }

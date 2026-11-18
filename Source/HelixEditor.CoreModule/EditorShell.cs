@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using HelixEditor.Docking;
 using HelixEditor.Toolbars;
 using HelixEngine;
 using HelixEngine.UI;
@@ -59,6 +60,13 @@ namespace HelixEditor
             };
             EditorApplication.pauseStateChanged += s => MainToolbar.Refresh("Editor/Pause");
             Rebuild();
+            Element dock = m_Root.Find("dock-root");
+            if (dock != null)
+            {
+                DockManager.Attach(dock);
+                DockManager.LoadStartLayout();
+            }
+            RegisterLayoutItems();
         }
 
         static Element FirstChild(Element e)
@@ -73,6 +81,7 @@ namespace HelixEditor
             if (m_Root == null)
                 return;
             Rebuild();
+            EditorWindow.UpdateAll();
             bool maximized = EditorApplication.IsWindowMaximizedInternal();
             if (maximized != m_Maximized && m_Maximize != null)
             {
@@ -96,6 +105,71 @@ namespace HelixEditor
                 m_ToolbarVersion = toolbar;
                 BuildToolbar();
             }
+        }
+
+        // ------------------------------------------------------------------------------------------ layouts
+
+        static readonly System.Collections.Generic.List<string> s_LayoutItems = new();
+
+        // The layouts in the Window menu (the presets and the project's saved ones), made again when they change.
+        static void RegisterLayoutItems()
+        {
+            foreach (string item in s_LayoutItems)
+                Menu.RemoveMenuItem(item);
+            s_LayoutItems.Clear();
+            int priority = 0;
+            foreach (string preset in DockManager.Presets())
+            {
+                string name = preset;
+                string path = "Window/Layouts/" + name;
+                Menu.AddMenuItem(path, "", false, priority++, () => DockManager.LoadPreset(name), null);
+                s_LayoutItems.Add(path);
+            }
+            priority += 11;
+            foreach (string saved in DockManager.SavedLayouts())
+            {
+                string name = saved;
+                string path = "Window/Layouts/" + name;
+                Menu.AddMenuItem(path, "", false, priority++, () => DockManager.LoadSaved(name), null);
+                s_LayoutItems.Add(path);
+            }
+            Menu.AddMenuItem("Window/Layouts/Save Layout", "", false, priority + 11, SaveLayout, null);
+            s_LayoutItems.Add("Window/Layouts/Save Layout");
+        }
+
+        static void SaveLayout()
+        {
+            int n = 1;
+            foreach (string s in DockManager.SavedLayouts())
+                n++;
+            DockManager.Save($"Layout {n}");
+            RegisterLayoutItems();
+            Status($"Saved the layout as Layout {n}.");
+        }
+
+        /// <summary>The Layout dropdown of the main toolbar: the presets, the project's layouts, Save Layout.</summary>
+        internal static void OpenLayoutMenu(Rect anchor)
+        {
+            if (s_Shell == null || s_Shell.m_Root == null)
+                return;
+            var menu = new GenericDropdownMenu();
+            foreach (string preset in DockManager.Presets())
+            {
+                string name = preset;
+                menu.AddItem(name, false, () => DockManager.LoadPreset(name));
+            }
+            bool any = false;
+            foreach (string saved in DockManager.SavedLayouts())
+            {
+                if (!any)
+                    menu.AddSeparator("");
+                any = true;
+                string name = saved;
+                menu.AddItem(name, false, () => DockManager.LoadSaved(name));
+            }
+            menu.AddSeparator("");
+            menu.AddItem("Save Layout", false, SaveLayout);
+            menu.DropDown(anchor, s_Shell.m_Root, true);
         }
 
         // ------------------------------------------------------------------------------------------- menus

@@ -96,6 +96,24 @@ if(HELIX_PLATFORM STREQUAL "windows" OR HELIX_PLATFORM STREQUAL "linux")
         # off CI).
         helix_add_executable(helix_editor_compare SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/Tools/CompareImages/CompareImages.cpp" DEPS Helix::Image Helix::Platform)
         set_target_properties(helix_editor_compare PROPERTIES OUTPUT_NAME CompareImages)
+        # The editor's C# tests (Tests/Managed), built into Managed/ beside the editor's assemblies and run inside it.
+        set(editor_tests_dir "${CMAKE_CURRENT_SOURCE_DIR}/Tests/Managed")
+        set(editor_tests_dll "${editor_artifacts}/bin/HelixEditor.Tests/release/HelixEditor.Tests.dll")
+        file(GLOB editor_tests_sources CONFIGURE_DEPENDS "${editor_tests_dir}/*.cs" "${editor_tests_dir}/*.csproj")
+        add_custom_command(
+            OUTPUT "${editor_managed}/HelixEditor.Tests.dll"
+            COMMAND "${HELIX_DOTNET}" build "${editor_tests_dir}/HelixEditor.Tests.csproj" -c Release --artifacts-path "${editor_artifacts}" --nologo -v quiet
+                    "-p:HelixCoreModule=${HELIX_CORE_MODULE}" "-p:HelixScriptingRuntime=${HELIX_SCRIPTING_RUNTIME}" "-p:HelixUIRuntime=${HELIX_UI_RUNTIME}"
+                    "-p:HelixEditorCoreModule=${editor_core_dll}"
+            COMMAND "${CMAKE_COMMAND}" -E copy "${editor_tests_dll}" "${editor_managed}"
+            DEPENDS ${editor_tests_sources} "${editor_managed}/.staged"
+            COMMENT "Building HelixEditor.Tests")
+        add_custom_target(helix_editor_managed_tests ALL DEPENDS "${editor_managed}/HelixEditor.Tests.dll")
+        add_dependencies(helix_editor_managed_tests helix_editor_managed)
+        add_test(NAME helix_editor_csharp
+                 COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:helix_editor>" "-DPROJECT=${CMAKE_CURRENT_SOURCE_DIR}/Tests/Projects/Empty"
+                         "-DWORK=${CMAKE_CURRENT_BINARY_DIR}/csharp" "-DMETHOD=HelixEditor.Tests.EditorTests.Run"
+                         -P "${CMAKE_CURRENT_SOURCE_DIR}/Tests/RunEditorTests.cmake")
         foreach(pipeline IN ITEMS standard physical)
             add_test(NAME helix_editor_shell_${pipeline}
                      COMMAND "${CMAKE_COMMAND}" "-DEDITOR=$<TARGET_FILE:helix_editor>" "-DCOMPARE=$<TARGET_FILE:helix_editor_compare>"
